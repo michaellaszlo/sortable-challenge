@@ -9,17 +9,37 @@ class Matcher:
         print('%d products' % len(products))
         print('%d listings' % len(listings))
 
+
+class Product:
+    def __init__(self, data):
+        add_data(self, data, 'id', 'product_name', 'manufacturer', 'model')
+        canonicalize_strings(self, 'manufacturer', 'model')
+
+class Listing:
+    def __init__(self, data):
+        add_data(self, data, 'id', 'manufacturer', 'title')
+        canonicalize_strings(self, 'manufacturer', 'title')
+
+class Container:
+    pass
+
 letters = set(list(string.ascii_lowercase))
 digits = set(list(string.digits))
 
-def make_token(char_set, text, pos):
-    chars = []
-    while True:
-        if pos == len(text) or text[pos] not in char_set:
-            break
-        chars.append(text[pos])
-        pos += 1
-    return pos, ''.join(chars)
+def add_data(item, data, *names):
+    """Set item attributes by getting named values from a data dictionary."""
+    for name in names:
+        value = data[name] if name in data else None
+        setattr(item, name, value)
+    item.data = data
+
+def canonicalize_strings(item, *names):
+    """Convert the named attributes into lists of canonical tokens.""" 
+    item.canonical = Container()
+    for name in names:
+        text = getattr(item, name)
+        tokens = make_canonical(text) if text != None else None
+        setattr(item.canonical, name, tokens)
 
 def make_canonical(text):
     """Parse text into canonical tokens."""
@@ -37,35 +57,22 @@ def make_canonical(text):
                 break
         if not made_token:
             pos += 1
-    print(text, tokens)
+    print(' '.join('%s[%d:%d]' % (t.text, t.start, t.start + len(t.text)) for
+        t in tokens))
 
-def canonicalize_strings(item, *names):
-    """Convert the named attributes into lists of canonical tokens.""" 
-    item.canonical = Container()
-    for name in names:
-        text = getattr(item, name)
-        tokens = make_canonical(text) if text != None else None
-        setattr(item.canonical, name, tokens)
-
-def add_data(item, data, *names):
-    """Set item attributes by getting named values from a data dictionary."""
-    for name in names:
-        value = data[name] if name in data else None
-        setattr(item, name, value)
-    item.data = data
-
-class Container:
-    pass
-
-class Product:
-    def __init__(self, data):
-        add_data(self, data, 'id', 'product_name', 'manufacturer', 'model')
-        canonicalize_strings(self, 'manufacturer', 'model')
-
-class Listing:
-    def __init__(self, data):
-        add_data(self, data, 'id', 'title', 'manufacturer')
-        canonicalize_strings(self, 'manufacturer', 'title')
+def make_token(char_set, text, pos):
+    """Extract a sequence of characters belonging to the given set."""
+    chars = []
+    start = pos
+    while True:
+        if pos == len(text) or text[pos] not in char_set:
+            break
+        chars.append(text[pos])
+        pos += 1
+    token = Container()
+    token.text = ''.join(chars)
+    token.start = start
+    return pos, token
 
 def load_items(Item, file_path):
     """Make a list of Item objects loaded from a file of JSON lines."""
