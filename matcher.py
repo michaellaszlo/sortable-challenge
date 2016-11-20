@@ -28,10 +28,11 @@ def load_items(Item, file_path):
     """Make a list of Item objects loaded from a file of JSON lines."""
     items = []
     with open(file_path) as file:
-        # Use the line number as the object ID.
-        for id, line in enumerate(file.readlines()):
+        for ix, line in enumerate(file.readlines()):
             data = json.loads(line)
-            data['id'] = id + 1
+            # If the data has no ID, use the line number.
+            if 'id' not in data:
+                data['id'] = ix + 1
             items.append(Item(data))
     return items
 
