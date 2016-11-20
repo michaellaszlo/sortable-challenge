@@ -8,36 +8,82 @@ class Matcher:
     def __init__(self, products, listings=[]):
         self.products = products
         self.listings = listings
-        self.counts = {}
-        self.match_all_listings()
+        self.match_all_products()
 
-    def match_all_listings(self):
-        for listing in self.listings:
-            self.match_listing(listing)
-        print('candidate counts:')
-        for count, frequency in sorted(self.counts.items()):
+    def match_all_products(self):
+        """Iterate over products first to match them with listings. This
+        approach is faster than iterating over listings first, due to our use
+        of token indices to reduce the set of listings to consider for each
+        product. It only makes sense to index the listings, not the products,
+        because we recognize a match when a listing contains a set of product
+        tokens. In other words, the product tokens act as a query and the
+        listing tokens act as a document to which we apply the query. Thus,
+        it is the listings (the documents) that must be indexed.
+        """
+        self.index_all_listings()
+        # For each product, find listings for which it is a match candidate.
+        for listing in listings:
+            listing.candidates = []
+        for product in self.products:
+            self.match_product(product)
+        # Tally the frequencies of the listings' candidate counts.
+        counts = {}
+        for listing in listings:
+            count = len(listing.candidates)
+            counts[count] = counts.setdefault(count, 0) + 1
+        print('candidate count frequencies:')
+        for count, frequency in sorted(counts.items()):
             proportion = 100.0 * frequency / len(self.listings)
             print('%d: %d %.1f%%' % (count, frequency, proportion))
 
-    def match_listing(self, listing):
-        candidates = []
-        for product in self.products:
+    def index_all_listings(self):
+        """Index the listings using their manufacturer and title tokens."""
+        for field in [ 'manufacturer', 'title' ]:
+            index = {}
+            for listing in self.listings:
+                for token in getattr(listing.canonical, field):
+                    index.setdefault(token.text, set()).add(listing)
+            setattr(self, field + '_index', index)
+
+    def match_product(self, product):
+        """Consider the given product as a match candidate for each listing."""
+        listings = self.listings
+        # Use token indices to get a smaller set of listings.
+        for listing_field, product_field in [
+                ('manufacturer', 'manufacturer'),
+                ('title', 'model') ]:
+            try:
+                index = getattr(self, listing_field + '_index')
+            except AttributeError:
+                break
+            tokens = getattr(product.canonical, product_field)
+            # For each product token, find the set of listings that include the
+            #  token. Use the smallest such set. (Set intersection would yield
+            #  a smaller set but increase the overall computational cost.)
+            for token in tokens:
+                if token.text not in index:
+                    return
+                try_listings = index[token.text]
+                if len(try_listings) < len(listings):
+                    listings = try_listings
+        # If a listing's manufacturer and title tokens include a product's
+        #  manufacturer and model tokens, respectively, as sublists, add that
+        #  product to the listing's candidate list.
+        for listing in listings:
             if not self.contains(listing.canonical.manufacturer,
                     product.canonical.manufacturer):
                 continue
             if not self.contains(listing.canonical.title,
                     product.canonical.model):
                 continue
-            candidates.append(product)
-        count = len(candidates)
-        self.counts[count] = self.counts.setdefault(count, 0) + 1
-        listing.candidates = candidates
+            listing.candidates.append(product)
 
-    def contains(self, sequence, sub):
-        for start in range(0, len(sequence) - len(sub) + 1):
+    def contains(self, tokens, sublist):
+        """Determine whether a token list contains a given sublist."""
+        for start in range(0, len(tokens) - len(sublist) + 1):
             okay = True
-            for i, word in enumerate(sub):
-                if sequence[start + i].text != word.text:
+            for i, word in enumerate(sublist):
+                if tokens[start + i].text != word.text:
                     okay = False
                     break
             if okay:
@@ -109,7 +155,7 @@ def make_canonical(text):
     return tokens
 
 def make_token(char_set, text, pos):
-    """Extract a sequence of characters belonging to the given set."""
+    """Extract a sequence of characters belonging to a character set."""
     chars = []
     start = pos
     while True:
@@ -129,7 +175,7 @@ def print_tokens(tokens):
         print(' '.join(token.text for token in tokens))
 
 def load_items(Item, file_path):
-    """Make a list of Item objects loaded from a file of JSON lines."""
+    """Make a list of Item objects based on a file of JSON lines."""
     items = []
     with open(file_path) as file:
         for ix, line in enumerate(file.readlines()):
