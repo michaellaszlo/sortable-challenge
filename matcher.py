@@ -8,33 +8,25 @@ class Matcher:
     def __init__(self, products, listings=[]):
         self.products = products
         self.listings = listings
-        self.match_all_products()
+        #self.match_all_products()
+        self.match_all_listings()
 
     def match_all_products(self):
         """Iterate over products first to match them with listings. This
         approach is faster than iterating over listings first, due to our use
-        of token indices to reduce the set of listings to consider for each
+        of token indexing to shrink the set of listings to consider for a
         product. It only makes sense to index the listings, not the products,
-        because we recognize a match when a listing contains a set of product
+        because we recognize a match when a listing contains a list of product
         tokens. In other words, the product tokens act as a query and the
         listing tokens act as a document to which we apply the query. Thus,
         it is the listings (the documents) that must be indexed.
         """
         self.index_all_listings()
-        # For each product, find listings for which it is a match candidate.
         for listing in listings:
             listing.candidates = []
         for product in self.products:
             self.match_product(product)
-        # Tally the frequencies of the listings' candidate counts.
-        counts = {}
-        for listing in listings:
-            count = len(listing.candidates)
-            counts[count] = counts.setdefault(count, 0) + 1
-        print('candidate count frequencies:')
-        for count, frequency in sorted(counts.items()):
-            proportion = 100.0 * frequency / len(self.listings)
-            print('%d: %d %.1f%%' % (count, frequency, proportion))
+        self.print_candidate_counts()
 
     def index_all_listings(self):
         """Index the listings using their manufacturer and title tokens."""
@@ -66,19 +58,44 @@ class Matcher:
                 try_listings = index[token.text]
                 if len(try_listings) < len(listings):
                     listings = try_listings
-        # If a listing's manufacturer and title tokens include a product's
-        #  manufacturer and model tokens, respectively, as sublists, add that
-        #  product to the listing's candidate list.
         for listing in listings:
-            if not self.contains(listing.canonical.manufacturer,
-                    product.canonical.manufacturer):
-                continue
-            if not self.contains(listing.canonical.title,
-                    product.canonical.model):
-                continue
-            listing.candidates.append(product)
+            if self.listing_may_match_product(listing, product):
+                listing.candidates.append(product)
 
-    def contains(self, tokens, sublist):
+    def match_all_listings(self):
+        """Iterate over listings first to match them with products. This
+        produces the same results as iterating over products first, but it
+        is slower because we can't take advantage of token indexing to
+        quickly shrink the set of products to consider.
+        """
+        for listing in self.listings:
+            self.match_listing(listing)
+        self.print_candidate_counts()
+
+    def match_listing(self, listing):
+        """Find products that may match the given listing."""
+        listing.candidates = []
+        for product in products:
+            if Matcher.listing_may_match_product(listing, product):
+                listing.candidates.append(product)
+
+    @staticmethod
+    def listing_may_match_product(listing, product):
+        """Decide whether a listing is potentially matched by a product.
+        If a listing's manufacturer and title tokens include a product's
+        manufacturer and model tokens, respectively, as sublists, we consider
+        the product to be a potential match for the listing.
+        """
+        if not Matcher.contains(listing.canonical.manufacturer,
+                product.canonical.manufacturer):
+            return False
+        if not Matcher.contains(listing.canonical.title,
+                product.canonical.model):
+            return False
+        return True
+
+    @staticmethod
+    def contains(tokens, sublist):
         """Determine whether a token list contains a given sublist."""
         for start in range(0, len(tokens) - len(sublist) + 1):
             okay = True
@@ -89,6 +106,17 @@ class Matcher:
             if okay:
                 return True
         return False
+
+    def print_candidate_counts(self):
+        """Count each listing's candidates and show the count frequencies."""
+        counts = {}
+        for listing in listings:
+            count = len(listing.candidates)
+            counts[count] = counts.setdefault(count, 0) + 1
+        print('candidate count frequencies:')
+        for count, frequency in sorted(counts.items()):
+            proportion = 100.0 * frequency / len(self.listings)
+            print('%d: %d %.1f%%' % (count, frequency, proportion))
 
 
 class Product:
