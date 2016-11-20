@@ -6,10 +6,10 @@ import string
 class Matcher:
 
     def __init__(self, products, listings=[]):
-        self.products = products
-        self.listings = listings
-        #self.match_all_products()
-        self.match_all_listings()
+        self.products, self.listings = products, listings
+        self.match_all_products()
+        self.print_candidate_counts()
+        #self.output_json()
 
     def match_all_products(self):
         """Iterate over products first to match them with listings. This
@@ -22,11 +22,10 @@ class Matcher:
         it is the listings (the documents) that must be indexed.
         """
         self.index_all_listings()
-        for listing in listings:
+        for listing in self.listings:
             listing.candidates = []
         for product in self.products:
             self.match_product(product)
-        self.print_candidate_counts()
 
     def index_all_listings(self):
         """Index the listings using their manufacturer and title tokens."""
@@ -58,7 +57,7 @@ class Matcher:
                 try_listings = index[token.text]
                 if len(try_listings) < len(listings):
                     listings = try_listings
-        for listing in listings:
+        for listing in self.listings:
             if self.listing_may_match_product(listing, product):
                 listing.candidates.append(product)
 
@@ -66,16 +65,15 @@ class Matcher:
         """Iterate over listings first to match them with products. This
         produces the same results as iterating over products first, but it
         is slower because we can't take advantage of token indexing to
-        quickly shrink the set of products to consider.
+        quickly shrink the set of products.
         """
         for listing in self.listings:
             self.match_listing(listing)
-        self.print_candidate_counts()
 
     def match_listing(self, listing):
         """Find products that may match the given listing."""
         listing.candidates = []
-        for product in products:
+        for product in self.products:
             if Matcher.listing_may_match_product(listing, product):
                 listing.candidates.append(product)
 
@@ -110,13 +108,23 @@ class Matcher:
     def print_candidate_counts(self):
         """Count each listing's candidates and show the count frequencies."""
         counts = {}
-        for listing in listings:
+        for listing in self.listings:
             count = len(listing.candidates)
             counts[count] = counts.setdefault(count, 0) + 1
         print('candidate count frequencies:')
         for count, frequency in sorted(counts.items()):
             proportion = 100.0 * frequency / len(self.listings)
             print('%d: %d %.1f%%' % (count, frequency, proportion))
+    
+    def output_json(self):
+        """Display the listings together with their candidate products."""
+        json_listings = []
+        for listing in self.listings:
+            data_plus = listing.data.copy()
+            data_plus['candidates'] = [ product.data for
+                    product in listing.candidates ]
+            json_listings.append(data_plus)
+        print('var listings = %s;' % json.dumps(json_listings))
 
 
 class Product:
@@ -146,9 +154,6 @@ class Container:
             setattr(self, name, value)
 
 
-letters = set(list(string.ascii_lowercase))
-digits = set(list(string.digits))
-
 def add_data(item, data, *names):
     """Set item attributes by getting named values from a data dictionary."""
     for name in names:
@@ -163,6 +168,9 @@ def canonicalize_strings(item, *names):
         text = getattr(item, name)
         tokens = make_canonical(text) if text != None else None
         setattr(item.canonical, name, tokens)
+
+letters = set(list(string.ascii_lowercase))
+digits = set(list(string.digits))
 
 def make_canonical(text):
     """Parse text into canonical tokens."""
@@ -214,12 +222,15 @@ def load_items(Item, file_path):
             items.append(Item(data))
     return items
 
-
-if __name__ == '__main__':
+def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
     listings_name = 'listings_a.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = Matcher(products, listings)
+
+
+if __name__ == '__main__':
+    main()
 
