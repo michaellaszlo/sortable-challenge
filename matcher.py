@@ -5,23 +5,72 @@ import string
 
 class Matcher:
 
-    def __init__(self, products, listings):
-        print('%d products' % len(products))
-        print('%d listings' % len(listings))
+    def __init__(self, products, listings=[]):
+        self.products = products
+        self.listings = listings
+        self.counts = {}
+        self.match_all_listings()
+
+    def match_all_listings(self):
+        for listing in self.listings:
+            self.match_listing(listing)
+        print('candidate counts:')
+        for count, frequency in sorted(self.counts.items()):
+            proportion = 100.0 * frequency / len(self.listings)
+            print('%d: %d %.1f%%' % (count, frequency, proportion))
+
+    def match_listing(self, listing):
+        candidates = []
+        for product in self.products:
+            if not self.contains(listing.canonical.manufacturer,
+                    product.canonical.manufacturer):
+                continue
+            if not self.contains(listing.canonical.title,
+                    product.canonical.model):
+                continue
+            candidates.append(product)
+        count = len(candidates)
+        self.counts[count] = self.counts.setdefault(count, 0) + 1
+        listing.candidates = candidates
+
+    def contains(self, sequence, sub):
+        for start in range(0, len(sequence) - len(sub) + 1):
+            okay = True
+            for i, word in enumerate(sub):
+                if sequence[start + i].text != word.text:
+                    okay = False
+                    break
+            if okay:
+                return True
+        return False
 
 
 class Product:
+
     def __init__(self, data):
         add_data(self, data, 'id', 'product_name', 'manufacturer', 'model')
         canonicalize_strings(self, 'manufacturer', 'model')
 
+    def __str__(self):
+        return str((self.manufacturer, self.model))
+
+
 class Listing:
+
     def __init__(self, data):
         add_data(self, data, 'id', 'manufacturer', 'title')
         canonicalize_strings(self, 'manufacturer', 'title')
 
+    def __str__(self):
+        return str((self.manufacturer, self.title))
+
+
 class Container:
-    pass
+
+    def __init__(self, data={}):
+        for name, value in data.items():
+            setattr(self, name, value)
+
 
 letters = set(list(string.ascii_lowercase))
 digits = set(list(string.digits))
@@ -57,8 +106,7 @@ def make_canonical(text):
                 break
         if not made_token:
             pos += 1
-    print(' '.join('%s[%d:%d]' % (t.text, t.start, t.start + len(t.text)) for
-        t in tokens))
+    return tokens
 
 def make_token(char_set, text, pos):
     """Extract a sequence of characters belonging to the given set."""
@@ -73,6 +121,12 @@ def make_token(char_set, text, pos):
     token.text = ''.join(chars)
     token.start = start
     return pos, token
+
+def print_tokens(tokens):
+    if tokens == None:
+        print('None')
+    else:
+        print(' '.join(token.text for token in tokens))
 
 def load_items(Item, file_path):
     """Make a list of Item objects loaded from a file of JSON lines."""
