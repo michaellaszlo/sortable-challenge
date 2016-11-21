@@ -9,7 +9,7 @@ subset_sizes = [ 100, 100, 200 ]
 # Use line numbers as ID values
 items = [ json.loads(line) for line in open(in_file_name).readlines() ]
 for ix, item in enumerate(items):
-    item['id'] = ix + 1
+    item['line_id'] = ix + 1
 
 # Shuffle the lines the same way each time. 
 random.seed(42)
@@ -28,7 +28,7 @@ for i, size in enumerate(subset_sizes):
     # Get subset of items and sort by ID.
     subset = items[offset : offset+size]
     print(out_file_name, len(subset))
-    subset.sort(key=lambda item: item['id'])
+    subset.sort(key=lambda item: item['line_id'])
     # Write to file.
     with open(out_file_name, 'w') as file:
         file.write('\n'.join(json.dumps(item) for item in subset) + '\n')

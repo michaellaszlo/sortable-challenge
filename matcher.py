@@ -5,18 +5,17 @@ import string
 
 class Matcher:
 
-    def __init__(self, products, listings=[]):
+    def __init__(self, products, listings):
         self.products, self.listings = products, listings
         self.match_all_products()
         self.print_candidate_counts()
-        #self.output_json()
 
     def match_all_products(self):
         """Iterate over products first to match them with listings. This
         approach is faster than iterating over listings first, due to our use
         of token indexing to shrink the set of listings to consider for a
         product. It only makes sense to index the listings, not the products,
-        because we recognize a match when a listing contains a list of product
+        because we deem a listing to match if it contains a sublist of product
         tokens. In other words, the product tokens act as a query and the
         listing tokens act as a document to which we apply the query. Thus,
         it is the listings (the documents) that must be indexed.
@@ -57,7 +56,7 @@ class Matcher:
                 try_listings = index[token.text]
                 if len(try_listings) < len(listings):
                     listings = try_listings
-        for listing in self.listings:
+        for listing in listings:
             if self.listing_may_match_product(listing, product):
                 listing.candidates.append(product)
 
@@ -116,21 +115,27 @@ class Matcher:
             proportion = 100.0 * frequency / len(self.listings)
             print('%d: %d %.1f%%' % (count, frequency, proportion))
     
-    def output_json(self):
-        """Display the listings together with their candidate products."""
-        json_listings = []
-        for listing in self.listings:
-            data_plus = listing.data.copy()
-            data_plus['candidates'] = [ product.data for
-                    product in listing.candidates ]
-            json_listings.append(data_plus)
-        print('var listings = %s;' % json.dumps(json_listings))
+    def output_json(self, file):
+        """Convert products and listings into dictionaries, then print JSON."""
+        for name_items, fields in [
+                ('products', [ 'manufacturer', 'model' ]),
+                ('listings', [ 'manufacturer', 'title' ])]:
+            items_plus = []
+            for item in getattr(self, name_items):
+                data_plus = item.data.copy()
+                data_plus['tokens'] = make_token_dictionaries(item, fields)
+                if name_items == 'listings':
+                    data_plus['candidateKeys'] = [ product.product_name for
+                            product in item.candidates ]
+                items_plus.append(data_plus)
+            file.write('var %s = %s;\n' % (name_items,
+                    json.dumps(items_plus, sort_keys=True, indent=2)))
 
 
 class Product:
 
     def __init__(self, data):
-        add_data(self, data, 'id', 'product_name', 'manufacturer', 'model')
+        add_data(self, data, 'line_id', 'product_name', 'manufacturer', 'model')
         canonicalize_strings(self, 'manufacturer', 'model')
 
     def __str__(self):
@@ -140,11 +145,18 @@ class Product:
 class Listing:
 
     def __init__(self, data):
-        add_data(self, data, 'id', 'manufacturer', 'title')
+        add_data(self, data, 'line_id', 'manufacturer', 'title')
         canonicalize_strings(self, 'manufacturer', 'title')
 
     def __str__(self):
         return str((self.manufacturer, self.title))
+
+
+class Token:
+
+    def __init__(self, text, start):
+        self.text, self.start = text, start
+        self.dictionary = { 'text': text, 'start': start }
 
 
 class Container:
@@ -199,16 +211,16 @@ def make_token(char_set, text, pos):
             break
         chars.append(text[pos])
         pos += 1
-    token = Container()
-    token.text = ''.join(chars)
-    token.start = start
+    token = Token(''.join(chars), start)
     return pos, token
 
-def print_tokens(tokens):
-    if tokens == None:
-        print('None')
-    else:
-        print(' '.join(token.text for token in tokens))
+def make_token_dictionaries(item, fields):
+    result = {}
+    for field in fields:
+        tokens = getattr(item.canonical, field)
+        result[field] = [ token.dictionary for token in tokens ]
+    return result
+
 
 def load_items(Item, file_path):
     """Make a list of Item objects based on a file of JSON lines."""
@@ -216,19 +228,20 @@ def load_items(Item, file_path):
     with open(file_path) as file:
         for ix, line in enumerate(file.readlines()):
             data = json.loads(line)
-            # If the data has no ID, use the line number.
-            if 'id' not in data:
-                data['id'] = ix + 1
+            if 'line_id' not in data:
+                data['line_id'] = ix + 1
             items.append(Item(data))
     return items
 
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings_a.txt'
+    listings_name = 'listings.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = Matcher(products, listings)
+    with open('js/data.js', 'w') as file:
+        matcher.output_json(file)
 
 
 if __name__ == '__main__':
