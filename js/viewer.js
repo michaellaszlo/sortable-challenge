@@ -43,12 +43,31 @@ var Viewer = (function () {
           var keyValue = M.make('div', { className: 'keyValue ' + field,
                   parent: listingBox });
           M.make('span', { className: 'key', parent: keyValue,
-              innerHTML: (field == 'line_id' ? 'listing line' : field) });
+              innerHTML: (field == 'line_id' ? 'listing' : field) });
           M.make('span', { className: 'value', parent: keyValue,
               innerHTML: listing[field] });
           if (field == 'manufacturer') {
             M.make('br', { parent: listingBox });
           }
+        });
+        // Display the listing's match candidates.
+        listing.candidateKeys.forEach(function (productName) {
+          var product = productMap[productName],
+              productBox = M.make('div', { className: 'product',
+                  parent: listingBox });
+          [ 'line_id', 'manufacturer', 'family', 'model'
+          ].forEach(function (field) {
+            var keyValue;
+            if (!(field in product)) {
+              return;
+            }
+            keyValue = M.make('div', { className: 'keyValue ' + field,
+                    parent: productBox });
+            M.make('span', { className: 'key', parent: keyValue,
+                innerHTML: (field == 'line_id' ? 'product' : field) });
+            M.make('span', { className: 'value', parent: keyValue,
+                innerHTML: product[field] });
+          });
         });
       });
     });
