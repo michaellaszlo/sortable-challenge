@@ -117,26 +117,36 @@ class Matcher:
     
     def output_json(self, file):
         """Convert products and listings into dictionaries, then print JSON."""
-        for name_items, fields in [
-                ('products', [ 'manufacturer', 'model' ]),
-                ('listings', [ 'manufacturer', 'title' ])]:
-            items_plus = []
-            for item in getattr(self, name_items):
-                data_plus = item.data.copy()
-                data_plus['tokens'] = make_token_dictionaries(item, fields)
-                if name_items == 'listings':
-                    data_plus['candidateKeys'] = [ product.product_name for
-                            product in item.candidates ]
-                items_plus.append(data_plus)
-            file.write('var %s = %s;\n' % (name_items,
-                    json.dumps(items_plus, sort_keys=True, indent=2)))
+        product_items = len(self.products) * [ None ]
+        for i, product in enumerate(self.products):
+            item = product_items[i] = { 'id': product.line_id }
+            for field in [ 'manufacturer', 'family', 'model' ]:
+                # A product may not have the family attribute.
+                if not hasattr(product, field):
+                    continue
+                # Make a dictionary containing text and tokens.
+                web_tokens = item[field] = { 'text': getattr(product, field) }
+                web_tokens['tokenSpans'] = [ token.span for
+                        token in getattr(product.canonical, field) ]
+        file.write('var products = %s;\n' % (json.dumps(product_items,
+                sort_keys=True, indent=2)))
+        listing_items = len(self.listings) * [ None ]
+        for i, listing in enumerate(self.listings):
+            item = listing_items[i] = { 'id': listing.line_id }
+            for field in [ 'manufacturer', 'title' ]:
+                # For consistency with products, wrap text in a dictionary.
+                item[field] = { 'text': getattr(listing, field) }
+            item['candidateKeys'] = [ product.line_id for
+                    product in listing.candidates ]
+        file.write('var listings = %s;\n' % (json.dumps(listing_items,
+                sort_keys=True, indent=2)))
 
 
 class Product:
 
     def __init__(self, data):
-        add_data(self, data, 'line_id', 'product_name', 'manufacturer', 'model')
-        canonicalize_strings(self, 'manufacturer', 'model')
+        set_data(self, data, 'line_id', 'manufacturer', 'family', 'model')
+        canonicalize_strings(self, 'manufacturer', 'family', 'model')
 
     def __str__(self):
         return str((self.manufacturer, self.model))
@@ -145,7 +155,7 @@ class Product:
 class Listing:
 
     def __init__(self, data):
-        add_data(self, data, 'line_id', 'manufacturer', 'title')
+        set_data(self, data, 'line_id', 'manufacturer', 'title')
         canonicalize_strings(self, 'manufacturer', 'title')
 
     def __str__(self):
@@ -156,7 +166,7 @@ class Token:
 
     def __init__(self, text, start):
         self.text, self.start = text, start
-        self.dictionary = { 'text': text, 'start': start }
+        self.span = [ start, start + len(text) ]
 
 
 class Container:
@@ -166,20 +176,20 @@ class Container:
             setattr(self, name, value)
 
 
-def add_data(item, data, *names):
+def set_data(item, data, *names):
     """Set item attributes by getting named values from a data dictionary."""
     for name in names:
-        value = data[name] if name in data else None
-        setattr(item, name, value)
+        if name in data:
+            setattr(item, name, data[name])
     item.data = data
 
 def canonicalize_strings(item, *names):
     """Convert the named attributes into lists of canonical tokens.""" 
     item.canonical = Container()
     for name in names:
-        text = getattr(item, name)
-        tokens = make_canonical(text) if text != None else None
-        setattr(item.canonical, name, tokens)
+        if hasattr(item, name):
+            tokens = make_canonical(getattr(item, name))
+            setattr(item.canonical, name, tokens)
 
 letters = set(list(string.ascii_lowercase))
 digits = set(list(string.digits))
@@ -213,14 +223,6 @@ def make_token(char_set, text, pos):
         pos += 1
     token = Token(''.join(chars), start)
     return pos, token
-
-def make_token_dictionaries(item, fields):
-    result = {}
-    for field in fields:
-        tokens = getattr(item.canonical, field)
-        result[field] = [ token.dictionary for token in tokens ]
-    return result
-
 
 def load_items(Item, file_path):
     """Make a list of Item objects based on a file of JSON lines."""

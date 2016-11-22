@@ -18,7 +18,7 @@ var Viewer = (function () {
     // Index products by name.
     productMap = Object.create(null);
     products.forEach(function (product) {
-      productMap[product.product_name] = product;
+      productMap[product.id] = product;
     });
     // Group listings according to candidate count.
     listingGroups = { zero: [], one: [], several: [] };
@@ -39,34 +39,33 @@ var Viewer = (function () {
         var listingBox = M.make('div', { className: 'listing',
             parent: groupBox });
         // Display the listing.
-        [ 'line_id', 'manufacturer', 'title' ].forEach(function (field) {
-          var keyValue = M.make('div', { className: 'keyValue ' + field,
+        [ 'id', 'manufacturer', 'title' ].forEach(function (field) {
+          var pair = M.make('div', { className: 'pair ' + field,
                   parent: listingBox });
-          M.make('span', { className: 'key', parent: keyValue,
-              innerHTML: (field == 'line_id' ? 'listing' : field) });
-          M.make('span', { className: 'value', parent: keyValue,
-              innerHTML: listing[field] });
+          M.make('span', { className: 'key', parent: pair,
+              innerHTML: field == 'id' ? 'listing' : field });
+          M.make('span', { className: 'value', parent: pair,
+              innerHTML: field == 'id' ? listing.id : listing[field].text });
           if (field == 'manufacturer') {
             M.make('br', { parent: listingBox });
           }
         });
         // Display the listing's match candidates.
-        listing.candidateKeys.forEach(function (productName) {
-          var product = productMap[productName],
+        listing.candidateKeys.forEach(function (id) {
+          var product = productMap[id],
               productBox = M.make('div', { className: 'product',
                   parent: listingBox });
-          [ 'line_id', 'manufacturer', 'family', 'model'
-          ].forEach(function (field) {
-            var keyValue;
+          [ 'id', 'manufacturer', 'family', 'model' ].forEach(function (field) {
+            var pair;
             if (!(field in product)) {
               return;
             }
-            keyValue = M.make('div', { className: 'keyValue ' + field,
+            pair = M.make('div', { className: 'pair ' + field,
                     parent: productBox });
-            M.make('span', { className: 'key', parent: keyValue,
-                innerHTML: (field == 'line_id' ? 'product' : field) });
-            M.make('span', { className: 'value', parent: keyValue,
-                innerHTML: product[field] });
+            M.make('span', { className: 'key', parent: pair,
+                innerHTML: field == 'id' ? 'product' : field });
+            M.make('span', { className: 'value', parent: pair,
+                innerHTML: field == 'id' ? product.id : product[field].text });
           });
         });
       });
