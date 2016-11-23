@@ -1,0 +1,12 @@
+
+-- Resolving cases with multiple candidates
+
+Choose the product with the most detailed match.
+
+Product A has a more detailed match than product B:
+- if A's family matches the listing and B's family does not (or is null)
+- otherwise, if A's model contains more tokens than B's model
+- otherwise, if the sum of the lengths of A's model tokens exceeds that of B
+
+If there is still a tie, we declare no match.
+

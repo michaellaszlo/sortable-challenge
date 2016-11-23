@@ -1,0 +1,29 @@
+
+mike@jupiter:~/jobs/sortable/challenge$ time python3 matcher.py
+candidate count frequencies:
+0: 10646 52.7%
+1: 8969 44.4%
+2: 564 2.8%
+3: 9 0.0%
+4: 3 0.0%
+6: 2 0.0%
+8: 3 0.0%
+
+real    0m2.929s
+user    0m2.863s
+sys     0m0.068s
+
+mike@jupiter:~/jobs/sortable/challenge$ time pypy3 matcher.py
+candidate count frequencies:
+0: 10646 52.7%
+1: 8969 44.4%
+2: 564 2.8%
+3: 9 0.0%
+4: 3 0.0%
+6: 2 0.0%
+8: 3 0.0%
+
+real    0m1.437s
+user    0m1.374s
+sys     0m0.064s
+

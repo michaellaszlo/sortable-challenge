@@ -89,10 +89,8 @@ body {
 .links {
   list-style: none;
 }
-.links a {
-  text-decoration: none;
-}
 .links li {
+  white-space: nowrap;
   padding: 4px;
   color: #fff;
   border-radius: 1px;
