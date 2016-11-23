@@ -4,7 +4,7 @@ var Viewer = (function () {
       productMap,
       listingGroups,
       groupOrder = [ 'several', 'one', 'zero' ],
-      groupHeader = {
+      groupHeaderInfo = {
         zero: { text: 'No', plural: '' },
         one: { text: 'Single', plural: '' },
         several: { text: 'Multiple', plural: 's' }
@@ -12,6 +12,12 @@ var Viewer = (function () {
 
   function countToGroupName(count) {
     return (count == 0 ? 'zero' : (count == 1 ? 'one' : 'several'));
+  }
+
+  function format(x, decimalDigits) {
+    var s = '' + Math.round(Math.pow(10, decimalDigits) * x),
+        pos = s.length - decimalDigits;
+    return s.substring(0, pos) + '.' + s.substring(pos);
   }
 
   function load() {
@@ -32,10 +38,21 @@ var Viewer = (function () {
     groupOrder.forEach(function (name) {
       var group = listingGroups[name],
           size = group.length,
-          header = groupHeader[name],
-          groupBox = M.make('div', { className: 'group', parent: wrapper });
-      M.make('h2', { parent: groupBox, innerHTML: header.text +
-          ' candidate' + header.plural + ': ' + size + ' listings' });
+          groupBox = M.make('div', { className: 'group', parent: wrapper }),
+          headerInfo = groupHeaderInfo[name],
+          header = M.make('h2', { className: 'header', parent: groupBox,
+              innerHTML: '<span class="arrow">&#9656</span>' + headerInfo.text +
+              ' candidate' + headerInfo.plural + ': ' + size + ' listings (' +
+              format(100 * size / listings.length, 1) + '%)' });
+      M.makeUnselectable(header);
+      M.classAdd(groupBox, 'show');
+      header.onclick = function () {
+        if (M.classContains(groupBox, 'show')) {
+          M.classRemove(groupBox, 'show');
+        } else {
+          M.classAdd(groupBox, 'show');
+        }
+      };
       group.forEach(function (listing) {
         var container = M.make('div', { className: 'listingContainer',
                 parent: groupBox }),

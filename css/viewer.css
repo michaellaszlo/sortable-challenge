@@ -22,16 +22,37 @@ body {
 #wrapper {
 }
 
-h2 {
-  font-size: 25px;
-  color: #fff;
-  margin: 30px 0 10px;
-  padding-left: 30px;
-}
-
 .group {
   margin-bottom: 30px;
 }
+.group .listingContainer {
+  display: none;
+}
+.group.show .listingContainer {
+  display: block;
+}
+.header {
+  font-size: 25px;
+  margin: 30px 0 10px;
+  padding-left: 30px;
+  color: #fff;
+  cursor: pointer;
+}
+.header:hover {
+  color: #ffa;
+}
+.arrow {
+  display: inline-block;
+  padding-right: 15px;
+  position: relative;
+  bottom: 4px;
+}
+.group.show .arrow {
+  transform: rotate(90deg);
+  left: -4px;
+  bottom: -8px;
+}
+
 .listingContainer {
   background: #fff;
   border: 1px solid #333;
