@@ -1,10 +1,8 @@
 var Viewer = (function () {
-  var wrapper,
-      output,
-      productMap,
-      listingGroups,
-      groupOrder = [ 'several', 'one', 'zero' ],
-      groupHeaderInfo = {
+  'use strict';
+
+  var groupOrder = [ 'several', 'one', 'zero' ],
+      groupInfo = {
         zero: { text: 'No', plural: '' },
         one: { text: 'Single', plural: '' },
         several: { text: 'Multiple', plural: 's' }
@@ -21,6 +19,8 @@ var Viewer = (function () {
   }
 
   function load() {
+    var wrapper, productMap, listingGroups,
+        menu, icon, linkContainer;
     // Index products by name.
     productMap = Object.create(null);
     products.forEach(function (product) {
@@ -39,11 +39,12 @@ var Viewer = (function () {
       var group = listingGroups[name],
           size = group.length,
           groupBox = M.make('div', { className: 'group', parent: wrapper }),
-          headerInfo = groupHeaderInfo[name],
+          info = groupInfo[name],
           header = M.make('h2', { className: 'header', parent: groupBox,
-              innerHTML: '<span class="arrow">&#9656</span>' + headerInfo.text +
-              ' candidate' + headerInfo.plural + ': ' + size + ' listings (' +
+              innerHTML: info.text +
+              ' candidate' + info.plural + ': ' + size + ' listings (' +
               format(100 * size / listings.length, 1) + '%)' });
+      info.element = groupBox;
       M.makeUnselectable(header);
       M.classAdd(groupBox, 'show');
       header.onclick = function () {
@@ -57,7 +58,8 @@ var Viewer = (function () {
         var container = M.make('div', { className: 'listingContainer',
                 parent: groupBox }),
             listingBox = M.make('div', { className: 'listing',
-                parent: container });
+                parent: container }),
+            text, spans, i, a, b, token, tokenMap;
         // Display the listing.
         [ 'id', 'manufacturer', 'title' ].forEach(function (field) {
           var pair = M.make('div', { className: 'pair ' + field,
@@ -82,8 +84,7 @@ var Viewer = (function () {
         listing.candidateKeys.forEach(function (id) {
           var product = productMap[id],
               productBox = M.make('div', { className: 'product',
-                  parent: container }),
-              text, spans, i, a, b, token, tokenMap;
+                  parent: container });
           [ 'id', 'manufacturer', 'family', 'model' ].forEach(function (field) {
             var pair;
             if (!(field in product)) {
@@ -137,6 +138,28 @@ var Viewer = (function () {
         });
       });
     });
+    // Build navigation menu.
+    menu = M.make('div', { id: 'menu', parent: wrapper });
+    icon = M.make('div', { className: 'icon', parent: menu });
+    linkContainer = M.make('ul', { className: 'links', parent: menu });
+    groupOrder.forEach(function (name) {
+      var info = groupInfo[name],
+          link = M.make('li', { parent: linkContainer,
+              innerHTML: info.text.charAt(0).toUpperCase() +
+              info.text.substring(1) + '&nbsp;candidate' + info.plural }),
+          groupElement = info.element;
+      link.onclick = function () {
+        groupElement.scrollIntoView();
+        icon.click();
+      };
+    });
+    icon.onclick = function () {
+      if (M.classContains(menu, 'show')) {
+        M.classRemove(menu, 'show');
+      } else {
+        M.classAdd(menu, 'show');
+      }
+    };
   }
 
   return {
