@@ -19,6 +19,38 @@ body {
   background: #444;
 }
 
+#spinnerFrame {
+  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: #444;
+  opacity: 0.9;
+  border: 1px solid #000;
+}
+#spinnerFrame.done {
+  display: none;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(359deg);
+  }
+}
+#spinner {
+  animation: spin 1s infinite steps(8);
+  width: 64px;
+  height: 64px;
+  position: fixed;
+  left: calc(50% - 32px);
+  top: calc(50% - 32px);
+  background: url('../i/spinner.white.png') no-repeat center center;
+}
+
 #menu {
   position: fixed;
   left: 0px;

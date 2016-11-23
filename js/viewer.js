@@ -19,7 +19,7 @@ var Viewer = (function () {
   }
 
   function load() {
-    var wrapper, productMap, listingGroups,
+    var wrapper, spinnerFrame, productMap, listingGroups,
         menu, icon, linkContainer;
     // Index products by name.
     productMap = Object.create(null);
@@ -34,6 +34,9 @@ var Viewer = (function () {
       listingGroups[name].push(listing);
     });
     wrapper = M.make('div', { id: 'wrapper', parent: document.body });
+    // Do some animation to bide the time until the listings are done.
+    //spinnerFrame = M.make('div', { id: 'spinnerFrame', parent: wrapper });
+    //M.make('div', { id: 'spinner', parent: spinnerFrame });
     // Build DOM elements to display the contents of each group.
     groupOrder.forEach(function (name) {
       var group = listingGroups[name],
@@ -160,6 +163,8 @@ var Viewer = (function () {
         M.classAdd(menu, 'show');
       }
     };
+    // Now we can get rid of the spinner.
+    M.classAdd(document.getElementById('spinnerFrame'), 'done');
   }
 
   return {
