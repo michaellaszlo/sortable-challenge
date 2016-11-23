@@ -134,8 +134,10 @@ class Matcher:
         for i, listing in enumerate(self.listings):
             item = listing_items[i] = { 'id': listing.line_id }
             for field in [ 'manufacturer', 'title' ]:
-                # For consistency with products, wrap text in a dictionary.
-                item[field] = { 'text': getattr(listing, field) }
+                # Make a dictionary containing text and tokens.
+                web_tokens = item[field] = { 'text': getattr(listing, field) }
+                web_tokens['tokenSpans'] = [ token.span for
+                        token in getattr(listing.canonical, field) ]
             item['candidateKeys'] = [ product.line_id for
                     product in listing.candidates ]
         file.write('var listings = %s;\n' % (json.dumps(listing_items,

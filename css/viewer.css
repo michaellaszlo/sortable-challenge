@@ -2,7 +2,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: sans-serif;
+  font-family: 'Roboto', sans-serif;
 }
 
 .unselectable {
@@ -55,28 +55,34 @@ h2 {
 .line_id .value {
   color: #333;
 }
-.manufacturer .value, .title .value, .family .value, .model .value {
-  font-family: monospace;
+.value, .match {
+  font-family: 'Roboto Mono', monospace;
 }
 .title .value {
   padding: 1px 2px;
   line-height: 22px;
 }
-.value .match {
-  background: #faf7f6;
-  border: 1px solid #e8e6e5;
-  border-radius: 3px;
+.match {
+  border: 1px solid #fff;
+  border-radius: 4px;
+}
+.match.manufacturer {
+  background: #e9f4f6;
+  border-bottom: 2px solid #4d83a7;
+}
+.match.family {
+  background: #fdf4f4;
+  border-bottom: 2px solid #a77175;
+}
+.match.model {
+  background: #eff2dc;
+  border-bottom: 2px solid #7aa850;
 }
 
 .product {
   margin-left: 5px;
 }
 .product::before {
-  /*
-  content: '•';
-  content: '∗';
-  content: '▪';
-  */
   content: '■';
   color: #bbb;
   padding-right: 5px;
