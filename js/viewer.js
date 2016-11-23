@@ -37,8 +37,10 @@ var Viewer = (function () {
       M.make('h2', { parent: groupBox, innerHTML: header.text +
           ' candidate' + header.plural + ': ' + size + ' listings' });
       group.forEach(function (listing) {
-        var listingBox = M.make('div', { className: 'listing',
-                parent: groupBox });
+        var container = M.make('div', { className: 'listingContainer',
+                parent: groupBox }),
+            listingBox = M.make('div', { className: 'listing',
+                parent: container });
         // Display the listing.
         [ 'id', 'manufacturer', 'title' ].forEach(function (field) {
           var pair = M.make('div', { className: 'pair ' + field,
@@ -51,10 +53,10 @@ var Viewer = (function () {
             return;
           }
           M.make('span', { className: 'key', parent: pair, innerHTML: field });
-          // Save the value container for later. The text needs highlighting.
+          // Save the value element for later. The text needs highlighting.
           listing[field].element = M.make('span', { className: 'value',
               parent: pair });
-          listing[field].tokenToField = Object.create(null);
+          listing[field].tokenMap = Object.create(null);
           if (field == 'manufacturer') {
             M.make('br', { parent: listingBox });
           }
@@ -63,8 +65,8 @@ var Viewer = (function () {
         listing.candidateKeys.forEach(function (id) {
           var product = productMap[id],
               productBox = M.make('div', { className: 'product',
-                  parent: listingBox }),
-              text, spans, i, a, b, token, tokenToField;
+                  parent: container }),
+              text, spans, i, a, b, token, tokenMap;
           [ 'id', 'manufacturer', 'family', 'model' ].forEach(function (field) {
             var pair;
             if (!(field in product)) {
@@ -81,14 +83,14 @@ var Viewer = (function () {
             // Inject highlighting into the product text.
             text = product[field].text;
             spans = product[field].tokenSpans;
-            tokenToField = listing[field == 'manufacturer' ?
-                'manufacturer' : 'title'].tokenToField;
+            tokenMap = listing[field == 'manufacturer' ?
+                'manufacturer' : 'title'].tokenMap;
             for (i = spans.length - 1; i >= 0; --i) {
               a = spans[i][0];
               b = spans[i][1];
               // Save the token to be highlighted later in the listing field.
               token = text.substring(a, b);
-              tokenToField[token] = field;
+              tokenMap[token] = field;
               text = text.substring(0, a) + '<span class="match ' + field +
                   '">' + text.substring(a, b) + '</span>' + text.substring(b);
             }
@@ -103,14 +105,14 @@ var Viewer = (function () {
           var target = listing[field];
           text = target.text;
           spans = target.tokenSpans;
-          tokenToField = target.tokenToField;
+          tokenMap = target.tokenMap;
           for (i = spans.length - 1; i >= 0; --i) {
             a = spans[i][0];
             b = spans[i][1];
             token = text.substring(a, b);
-            if (token in tokenToField) {
+            if (token in tokenMap) {
               text = text.substring(0, a) + '<span class="match ' + 
-                  tokenToField[token] + '">' + text.substring(a, b) +
+                  tokenMap[token] + '">' + text.substring(a, b) +
                   '</span>' + text.substring(b);
             }
           }
