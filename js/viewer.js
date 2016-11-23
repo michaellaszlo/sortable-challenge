@@ -3,9 +3,9 @@ var Viewer = (function () {
 
   var groupOrder = [ 'several', 'one', 'zero' ],
       groupInfo = {
-        zero: { text: 'No', plural: '' },
-        one: { text: 'Single', plural: '' },
-        several: { text: 'Multiple', plural: 's' }
+        zero: { numberText: 'No', plural: '' },
+        one: { numberText: 'Single', plural: '' },
+        several: { numberText: 'Multiple', plural: 's' }
       };
 
   function countToGroupName(count) {
@@ -40,10 +40,11 @@ var Viewer = (function () {
           size = group.length,
           groupBox = M.make('div', { className: 'group', parent: wrapper }),
           info = groupInfo[name],
-          header = M.make('h2', { className: 'header', parent: groupBox,
-              innerHTML: info.text +
+          headerText = info.headerText = info.numberText +
               ' candidate' + info.plural + ': ' + size + ' listings (' +
-              format(100 * size / listings.length, 1) + '%)' });
+              format(100 * size / listings.length, 1) + '%)',
+          header = M.make('h2', { className: 'header', parent: groupBox,
+              innerHTML: headerText });
       info.element = groupBox;
       M.makeUnselectable(header);
       M.classAdd(groupBox, 'show');
@@ -145,8 +146,7 @@ var Viewer = (function () {
     groupOrder.forEach(function (name) {
       var info = groupInfo[name],
           link = M.make('li', { parent: linkContainer,
-              innerHTML: info.text.charAt(0).toUpperCase() +
-              info.text.substring(1) + '&nbsp;candidate' + info.plural }),
+              innerHTML: info.headerText.replace(/\s/g, '&nbsp;') }),
           groupElement = info.element;
       link.onclick = function () {
         groupElement.scrollIntoView();
