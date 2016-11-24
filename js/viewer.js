@@ -1,16 +1,13 @@
 var Viewer = (function () {
   'use strict';
 
-  var groupOrder = [ 'several', 'one', 'zero' ],
+  var groupOrder = [ 'multipleUnresolved', 'multipleResolved', 'one', 'zero' ],
       groupInfo = {
-        zero: { numberText: 'No', plural: '' },
+        multipleUnresolved: { numberText: 'Unresolved multiple', plural: 's' },
+        multipleResolved: { numberText: 'Resolved multiple', plural: 's' },
         one: { numberText: 'Single', plural: '' },
-        several: { numberText: 'Multiple', plural: 's' }
+        zero: { numberText: 'No', plural: '' }
       };
-
-  function countToGroupName(count) {
-    return (count == 0 ? 'zero' : (count == 1 ? 'one' : 'several'));
-  }
 
   function format(x, decimalDigits) {
     var s = '' + Math.round(Math.pow(10, decimalDigits) * x),
@@ -27,11 +24,20 @@ var Viewer = (function () {
       productMap[product.id] = product;
     });
     // Group listings according to candidate count.
-    listingGroups = { zero: [], one: [], several: [] };
+    listingGroups = {};
+    groupOrder.forEach(function (key) {
+      listingGroups[key] = [];
+    });
     listings.forEach(function (listing) {
       var count = listing.candidateKeys.length,
-          name = countToGroupName(count);
-      listingGroups[name].push(listing);
+          key;
+      if (count <= 1) {
+        key = (count == 0 ? 'zero' : 'one');
+      } else {
+        key = 'multiple' + (typeof listing.bestCandidateKey == 'number' ?
+            'Resolved' : 'Unresolved');
+      }
+      listingGroups[key].push(listing);
     });
     wrapper = M.make('div', { id: 'wrapper', parent: document.body });
     // Do some animation to bide the time until the listings are done.
