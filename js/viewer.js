@@ -89,6 +89,9 @@ var Viewer = (function () {
           var product = productMap[id],
               productBox = M.make('div', { className: 'product',
                   parent: container });
+          if (id == listing.bestCandidateKey) {
+            M.classAdd(productBox, 'selected');
+          }
           [ 'id', 'manufacturer', 'family', 'model' ].forEach(function (field) {
             var pair;
             if (!(field in product)) {

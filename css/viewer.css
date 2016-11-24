@@ -166,6 +166,10 @@ body {
 }
 .product::before {
   content: '■';
-  color: #999;
+  color: #bbb;
   padding-right: 7px;
+}
+.product.selected::before {
+  color: #924823;
+  color: #333;
 }

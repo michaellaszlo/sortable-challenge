@@ -202,8 +202,11 @@ class Matcher:
                 web_tokens = item[field] = { 'text': getattr(listing, field) }
                 web_tokens['tokenSpans'] = [ token.span for
                         token in getattr(listing.tokens, field) ]
+            listing.candidates.sort(key=lambda p: p.line_id)
             item['candidateKeys'] = [ product.line_id for
                     product in listing.candidates ]
+            if listing.best_candidate != None:
+                item['bestCandidateKey'] = listing.best_candidate.line_id
         file.write('var listings = %s;\n' % (json.dumps(listing_items)))
                 #sort_keys=True, indent=2)))
 
