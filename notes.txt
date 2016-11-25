@@ -1,7 +1,30 @@
 
--- Resolving cases with multiple candidates
 
-If there are more than three candidates, we declare no match.
+-- Dealing with duplicate products
+
+Here is a camera that occurs twice in products.txt:
+
+line 186:
+  {"product_name":"Samsung-SL202","manufacturer":"Samsung","model":"SL202"...}
+line 258:
+  {"product_name":"Samsung_SL202","manufacturer":"Samsung","model":"SL202"...}
+
+Although the product_name property differs, the manufacturer and model
+properties are identical. We can filter out duplicate products at various
+stages in the matching process. If we do so before looking for matches,
+we don't have to deal with duplicate products during disambiguation. So
+let's do that. In each group of duplicate products, we'll use the one
+that occurs first and discard the rest.
+
+
+-- Match candidates
+
+...
+
+
+-- Disambiguation: handling cases with multiple candidates
+
+If there are more than two candidates, we declare no match.
 
 Otherwise, we choose the product with the most detailed match.
 
@@ -11,4 +34,40 @@ Product A has a more detailed match than product B...
 - otherwise, if the sum of the lengths of A's model tokens exceeds that of B
 
 If there is still a tie, we declare no match.
+
+
+-- Troublesome listings
+
+17
+- this looks like a detailed match except that the listing is about a battery
+- I don't see how I can eliminate this without going into heavy NLP
+
+22
+- mentions many products, only two of which are listed in products.txt
+- sometimes the product list isn't comprehensive enough, but in this
+  case the listing is erroneous: the product names are reversed
+- even the two matches aren't right: the tokens are separated by commas
+- one of the two has a more detailed match than the rest
+
+15274
+- matches product 123, the Leica Digilux Zoom
+- I could eliminate this by requiring a family match
+
+
+-- Dilemma
+
+Should I require that the product family, if specified for a product,
+be present in the listing? This would improve precision at the expense
+of recall. I would hate to lose a bunch of listings that merely fail to
+mention the product family.
+
+On the other hand, the challenge instructions say that precision is much
+more important than recall:
+
+  "Precision is critical. We much prefer missed matches (lower recall)
+  over incorrect matches, so try hard to avoid false positives."
+
+What if I only require the family to match in ambiguous cases? Hmm. What
+to do? Code it and run it. Get some hard stats. View the results.
+
 

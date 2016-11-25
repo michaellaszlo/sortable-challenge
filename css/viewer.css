@@ -166,10 +166,10 @@ body {
 }
 .product::before {
   content: '■';
-  color: #bbb;
+  color: #ccc;
   padding-right: 7px;
 }
 .product.selected::before {
   color: #924823;
-  color: #333;
+  color: #444;
 }

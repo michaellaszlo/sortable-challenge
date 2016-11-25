@@ -1,6 +1,7 @@
 import json
 import os.path
 import random
+import re
 import string
 
 
@@ -23,11 +24,35 @@ class Matcher:
         listing tokens act as a document to which we apply the query. Thus,
         it is the listings (the documents) that must be indexed.
         """
+        self.remove_duplicate_products()
         self.index_all_listings()
         for listing in self.listings:
             listing.candidates = []
         for product in self.products:
             self.match_product(product)
+
+    def remove_duplicate_products(self):
+        """Discard products that have the same manufacturer, family, and model
+        values as a product that occurs earlier in the list. Text values are
+        compared in lowercase after stripping non-alphanumeric characters.
+        """
+        products = []
+        product_keys = set()
+        reduce_regex = re.compile('[^a-z0-9]', re.IGNORECASE)
+        reduce = lambda s: reduce_regex.sub('', s.lower())
+        for product in self.products:
+            values = [ product.manufacturer ]
+            # Some products have no family value. The rascals!
+            if hasattr(product, 'family'):
+                values.append(product.family)
+            values.append(product.model)
+            # It's safe to join with a space--we stripped spaces from values.
+            key = ' '.join(map(reduce, values))
+            if key in product_keys:
+                continue
+            product_keys.add(key)
+            products.append(product)
+        self.products = products
 
     def index_all_listings(self):
         """Index the listings using their manufacturer and title tokens."""
@@ -82,7 +107,7 @@ class Matcher:
     def disambiguate_matches(self):
         for listing in self.listings:
             candidates = listing.candidates
-            if len(candidates) == 0 or len(candidates) > 3:
+            if len(candidates) == 0 or len(candidates) > 2:
                 continue
             if len(candidates) == 1:
                 listing.best_candidate = candidates[0]
@@ -183,7 +208,7 @@ class Matcher:
         """Convert products and listings into dictionaries, then print JSON."""
         product_items = len(self.products) * [ None ]
         for i, product in enumerate(self.products):
-            item = product_items[i] = { 'id': product.line_id }
+            item = product_items[i] = { 'id': product.id }
             for field in [ 'manufacturer', 'family', 'model' ]:
                 # A product may not have the family attribute.
                 if not hasattr(product, field):
@@ -196,17 +221,17 @@ class Matcher:
                 #sort_keys=True, indent=2)))
         listing_items = len(self.listings) * [ None ]
         for i, listing in enumerate(self.listings):
-            item = listing_items[i] = { 'id': listing.line_id }
+            item = listing_items[i] = { 'id': listing.id }
             for field in [ 'manufacturer', 'title' ]:
                 # Make a dictionary containing text and tokens.
                 web_tokens = item[field] = { 'text': getattr(listing, field) }
                 web_tokens['tokenSpans'] = [ token.span for
                         token in getattr(listing.tokens, field) ]
-            listing.candidates.sort(key=lambda p: p.line_id)
-            item['candidateKeys'] = [ product.line_id for
+            listing.candidates.sort(key=lambda p: p.id)
+            item['candidateKeys'] = [ product.id for
                     product in listing.candidates ]
             if listing.best_candidate != None:
-                item['bestCandidateKey'] = listing.best_candidate.line_id
+                item['bestCandidateKey'] = listing.best_candidate.id
         file.write('var listings = %s;\n' % (json.dumps(listing_items)))
                 #sort_keys=True, indent=2)))
 
@@ -214,17 +239,18 @@ class Matcher:
 class Product:
 
     def __init__(self, data):
-        set_data(self, data, 'line_id', 'manufacturer', 'family', 'model')
+        set_data(self, data, 'id', 'manufacturer', 'family', 'model')
         tokenize_attributes(self, 'manufacturer', 'family', 'model')
 
     def __str__(self):
-        return str((self.manufacturer, self.model))
+        family = self.family if hasattr(self, 'family') else '-'
+        return str((self.id, self.manufacturer, family, self.model))
 
 
 class Listing:
 
     def __init__(self, data):
-        set_data(self, data, 'line_id', 'manufacturer', 'title')
+        set_data(self, data, 'id', 'manufacturer', 'title')
         tokenize_attributes(self, 'manufacturer', 'title')
         self.best_candidate = None
 
@@ -298,10 +324,11 @@ def load_items(Item, file_path):
     """Make a list of Item objects based on a file of JSON lines."""
     items = []
     with open(file_path) as file:
-        for ix, line in enumerate(file.readlines()):
+        for line_index, line in enumerate(file.readlines()):
             data = json.loads(line)
-            if 'line_id' not in data:
-                data['line_id'] = ix + 1
+            # Allow for predefined IDs. Use the line number by default.
+            if 'id' not in data:
+                data['id'] = line_index + 1
             items.append(Item(data))
     return items
 
