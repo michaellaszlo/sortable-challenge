@@ -1,0 +1,21 @@
+
+Without duplicate removal or match disambiguation:
+0: 10646 52.7%
+1: 8969 44.4%
+2: 564 2.8%
+3: 9 0.0%
+4: 3 0.0%
+6: 2 0.0%
+8: 3 0.0%
+
+After removing duplicate products:
+0: 10646 52.7%
+1: 8981 44.5%
+2: 552 2.7%
+3: 9 0.0%
+4: 3 0.0%
+6: 2 0.0%
+8: 3 0.0%
+
+
+

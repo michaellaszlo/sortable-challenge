@@ -73,6 +73,8 @@ class Matcher:
             try:
                 index = getattr(self, listing_field + '_index')
             except AttributeError:
+                # If the listings weren't indexed, the _index attribute
+                #  doesn't exist and we bail out on the first iteration.
                 break
             tokens = getattr(product.tokens, product_field)
             # For each product token, find the set of listings that include the
@@ -90,9 +92,10 @@ class Matcher:
 
     def match_all_listings(self):
         """Iterate over listings first to match them with products. This
-        produces the same results as iterating over products first, but it
-        is slower because we can't take advantage of token indexing to
-        quickly shrink the set of products.
+        produces the same results as iterating over products first, but
+        it is slower because we can't take advantage of token indexing to
+        quickly shrink the set of products. It is useful for verifying
+        the correctness of match_all_products().
         """
         for listing in self.listings:
             self.match_listing(listing)
@@ -103,79 +106,6 @@ class Matcher:
         for product in self.products:
             if self.listing_may_match_product(listing, product):
                 listing.candidates.append(product)
-
-    def disambiguate_matches(self):
-        for listing in self.listings:
-            candidates = listing.candidates
-            if len(candidates) == 0 or len(candidates) > 2:
-                continue
-            if len(candidates) == 1:
-                listing.best_candidate = candidates[0]
-                continue
-            self.detail_sort(listing, candidates)
-            if self.detail_compare(listing, candidates[0], candidates[1]) == 0:
-                continue
-            listing.best_candidate = candidates[0]
-
-    @staticmethod
-    def detail_sort(listing, candidates, start=0, length=None):
-        a = candidates
-        if length == None:
-            length = len(a)
-        if length < 2:
-            return
-        pivot_pos = random.randrange(start, start + length)
-        left = start
-        right = start + length - 1
-        pivot = a[pivot_pos]
-        a[pivot_pos] = a[right]
-        for pos in range(start, right):
-            if Matcher.detail_compare(listing, a[pos], pivot) == -1:
-                a[left], a[pos] = a[pos], a[left]
-                left += 1
-        a[right] = a[left]
-        a[left] = pivot
-        Matcher.detail_sort(listing, candidates, start, left - start)
-        Matcher.detail_sort(listing, candidates, left + 1, right - left)
-
-    @staticmethod 
-    def detail_compare(listing, a, b):
-        a_family_match = hasattr(a.tokens, 'family') and \
-                Matcher.contains(listing.tokens.title, a.tokens.family)
-        b_family_match = hasattr(b.tokens, 'family') and \
-                Matcher.contains(listing.tokens.title, b.tokens.family)
-        if a_family_match and not b_family_match:
-            return -1
-        if not a_family_match and b_family_match:
-            return 1
-        a_num_tokens = len(a.tokens.model)
-        b_num_tokens = len(b.tokens.model)
-        if a_num_tokens > b_num_tokens:
-            return -1
-        if a_num_tokens < b_num_tokens:
-            return 1
-        a_total_length = sum(map(lambda t: len(t.text), a.tokens.model))
-        b_total_length = sum(map(lambda t: len(t.text), b.tokens.model))
-        if a_total_length > b_total_length:
-            return -1
-        if a_total_length < b_total_length:
-            return 1
-        return 0
-
-    @staticmethod
-    def listing_may_match_product(listing, product):
-        """Decide whether a listing is potentially matched by a product.
-        If a listing's manufacturer and title tokens include a product's
-        manufacturer and model tokens, respectively, as sublists, we consider
-        the product to be a potential match for the listing.
-        """
-        if not Matcher.contains(listing.tokens.manufacturer,
-                product.tokens.manufacturer):
-            return False
-        if not Matcher.contains(listing.tokens.title,
-                product.tokens.model):
-            return False
-        return True
 
     @staticmethod
     def contains(tokens, sublist):
@@ -189,6 +119,44 @@ class Matcher:
             if okay:
                 return True
         return False
+
+    def disambiguate_matches(self):
+        """Try to resolve cases where a listing has several match candidates."""
+        for listing in self.listings:
+            candidates = listing.candidates
+            # If there are many candidates, assume that the listing does not
+            #  describe any particular product.
+            if len(candidates) == 0 or len(candidates) > 2:
+                continue
+            if len(candidates) == 1:
+                listing.best_candidate = candidates[0]
+                continue
+            self.detail_sort(listing, candidates)
+            if self.detail_compare(listing, candidates[0], candidates[1]) == 0:
+                continue
+            listing.best_candidate = candidates[0]
+
+    def detail_sort(self, listing, products, start=0, length=None):
+        """Sort products in place, calling detail_compare() on product pairs."""
+        a = products
+        if length == None:
+            length = len(a)
+        if length < 2:
+            return
+        # Use recursive quicksort with random pivot selection.
+        pivot_pos = random.randrange(start, start + length)
+        left = start
+        right = start + length - 1
+        pivot = a[pivot_pos]
+        a[pivot_pos] = a[right]
+        for pos in range(start, right):
+            if self.detail_compare(listing, a[pos], pivot) == -1:
+                a[left], a[pos] = a[pos], a[left]
+                left += 1
+        a[right] = a[left]
+        a[left] = pivot
+        self.detail_sort(listing, products, start, left - start)
+        self.detail_sort(listing, products, left + 1, right - left)
 
     def print_candidate_counts(self):
         """Count each listing's candidates and show the count frequencies."""
@@ -234,6 +202,59 @@ class Matcher:
                 item['bestCandidateKey'] = listing.best_candidate.id
         file.write('var listings = %s;\n' % (json.dumps(listing_items)))
                 #sort_keys=True, indent=2)))
+
+
+class LooseMatcher(Matcher):
+
+    @staticmethod
+    def listing_may_match_product(listing, product):
+        """Decide whether a listing is potentially matched by a product."""
+        # If a listing's manufacturer and title tokens include a product's
+        #  manufacturer and model tokens, respectively, as sublists, we
+        #  consider the product to be a potential match for the listing.
+        if not Matcher.contains(listing.tokens.manufacturer,
+                product.tokens.manufacturer):
+            return False
+        if not Matcher.contains(listing.tokens.title,
+                product.tokens.model):
+            return False
+        return True
+
+    @staticmethod 
+    def detail_compare(listing, a, b):
+        """Decide whether one match is more detailed than another."""
+        a_family_match = hasattr(a.tokens, 'family') and \
+                Matcher.contains(listing.tokens.title, a.tokens.family)
+        b_family_match = hasattr(b.tokens, 'family') and \
+                Matcher.contains(listing.tokens.title, b.tokens.family)
+        if a_family_match and not b_family_match:
+            return -1
+        if not a_family_match and b_family_match:
+            return 1
+        a_num_tokens = len(a.tokens.model)
+        b_num_tokens = len(b.tokens.model)
+        if a_num_tokens > b_num_tokens:
+            return -1
+        if a_num_tokens < b_num_tokens:
+            return 1
+        a_total_length = sum(map(lambda t: len(t.text), a.tokens.model))
+        b_total_length = sum(map(lambda t: len(t.text), b.tokens.model))
+        if a_total_length > b_total_length:
+            return -1
+        if a_total_length < b_total_length:
+            return 1
+        return 0
+
+
+class StrictMatcher(Matcher):
+
+    @staticmethod
+    def listing_may_match_product(listing, product):
+        """Decide whether a listing is potentially matched by a product."""
+
+    @staticmethod
+    def detail_compare(listing, a, b):
+        """Decide whether one match is more detailed than another."""
 
 
 class Product:
@@ -335,10 +356,10 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings.txt'
+    listings_name = 'listings_a.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
-    matcher = Matcher(products, listings)
+    matcher = LooseMatcher(products, listings)
     with open('js/data.js', 'w') as file:
         matcher.output_json(file)
 

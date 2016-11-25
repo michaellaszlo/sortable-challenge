@@ -17,11 +17,6 @@ let's do that. In each group of duplicate products, we'll use the one
 that occurs first and discard the rest.
 
 
--- Match candidates
-
-...
-
-
 -- Disambiguation: handling cases with multiple candidates
 
 If there are more than two candidates, we declare no match.
@@ -40,7 +35,7 @@ If there is still a tie, we declare no match.
 
 17
 - this looks like a detailed match except that the listing is about a battery
-- I don't see how I can eliminate this without going into heavy NLP
+- I don't see how I can eliminate this without hard-core NLP
 
 22
 - mentions many products, only two of which are listed in products.txt
@@ -56,10 +51,10 @@ If there is still a tie, we declare no match.
 
 -- Dilemma
 
-Should I require that the product family, if specified for a product,
+Should we require that the product family, if specified for a product,
 be present in the listing? This would improve precision at the expense
-of recall. I would hate to lose a bunch of listings that merely fail to
-mention the product family.
+of recall. It seems to be a shame to lose a bunch of listings that merely
+fail to mention the product family.
 
 On the other hand, the challenge instructions say that precision is much
 more important than recall:
@@ -67,7 +62,32 @@ more important than recall:
   "Precision is critical. We much prefer missed matches (lower recall)
   over incorrect matches, so try hard to avoid false positives."
 
-What if I only require the family to match in ambiguous cases? Hmm. What
+What if we only require the family to match in ambiguous cases? Hmm. What
 to do? Code it and run it. Get some hard stats. View the results.
+
+
+-- Making detail_compare more conservative
+
+Currently I rely on the three rules in detail_compare to disambiguate
+multiple-match cases. The first rule is conceptually sound: if candidate
+A has a family match with the target listing and candidate B doesn't,
+I say that A is a more detailed match than B.
+
+The other two rules are dodgy. If one candidate has more tokens than
+another, I say that it's a more detailed match. How does that make
+sense? A model name consisting of a single token may very well be a
+semantically better match than a model name with three tokens. "One token
+good, three tokens better" is almost as wrongheaded as "Four legs good,
+two legs better". My last disambiguating rule is even more foolish. If
+the sum of the token lengths is greater, I say that it's a more detailed
+match. Ridiculous! Why should a longer model name be better?
+
+I have these rules because they're effective, not because they make
+sense. Visual inspection leads me to believe that they improve recall
+with little or no loss of precision. However, this is probably an
+accident. My quirky rules happen to work for this collection of listings
+and products. I can easily see them leading to a significant loss of
+precision on a different test set. Therefore, with a heavy heart, I must
+abandon them.
 
 
