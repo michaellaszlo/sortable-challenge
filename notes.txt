@@ -93,7 +93,34 @@ sense. Visual inspection leads me to believe that they improve recall
 with little or no loss of precision. However, this is probably an
 accident. My quirky rules happen to work for this collection of listings
 and products. I can easily see them leading to a significant loss of
-precision on a different test set. Therefore, with a heavy heart, I must
-abandon them.
+precision on a different test set. Therefore, I'll abandon them even
+though I know my recall will decline. Precision is paramount.
+
+
+-- Further tightening
+
+I can eliminate some spurious matches by requiring the family value, if
+any, to occur immediately before the model in the listing. For example,
+take this title in listing 7241:
+
+  Leica 'Digilux 2' 5MP Digital Camera with 3.2x Optical Zoom
+
+Currently I match product 123, with family "Digilux" and model "Zoom",
+to the listing. But the model named in the listing is the Digilux 2,
+not the Digilux Zoom.
+
+Requiring the family value to occur immediately before the model value is
+equivalent to concatenating the family tokens and model tokens. However,
+I'll keep the token lists separate so that I can easily switch between
+loose matching and tight matching.
+
+I hope the loss in recall will be acceptable when weighed against the
+increase in precision.
+
+
+
+-- A slight loosening
+
+check whether one product's model is a superlist of the other's
 
 

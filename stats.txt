@@ -35,5 +35,22 @@ With the family requirement:
 5: 1 0.0%
 6: 4 0.0%
 
+Without quirky disambiguation rules (token count and total length):
+0: 12041 59.6%
+1: 7998 39.6%
+2: 147 0.7%
+3: 3 0.0%
+4: 2 0.0%
+5: 1 0.0%
+6: 4 0.0%
+
+Requiring the family tokens to immediately precede the model tokens:
+0: 12269 60.7%
+1: 7846 38.8%
+2: 76 0.4%
+3: 1 0.0%
+5: 1 0.0%
+6: 3 0.0%
+
 
 

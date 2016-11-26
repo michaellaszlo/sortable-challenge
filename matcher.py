@@ -107,8 +107,8 @@ class Matcher:
                 listing.candidates.append(product)
 
     @staticmethod
-    def contains(tokens, sublist):
-        """Determine whether a token list contains a given sublist."""
+    def find(tokens, sublist):
+        """Search a token list for a sublist. Return the start index or -1."""
         for start in range(0, len(tokens) - len(sublist) + 1):
             okay = True
             for i, word in enumerate(sublist):
@@ -116,8 +116,22 @@ class Matcher:
                     okay = False
                     break
             if okay:
-                return True
-        return False
+                return start
+        return -1
+
+    @staticmethod
+    def find_all(tokens, sublist):
+        """Search a token list for a sublist. Return all start indices."""
+        result = []
+        for start in range(0, len(tokens) - len(sublist) + 1):
+            okay = True
+            for i, word in enumerate(sublist):
+                if tokens[start + i].text != word.text:
+                    okay = False
+                    break
+            if okay:
+                result.append(start)
+        return result
 
     def disambiguate_matches(self):
         """Try to resolve cases where a listing has several match candidates."""
@@ -211,30 +225,31 @@ class LooseMatcher(Matcher):
         # If a listing's manufacturer and title tokens include a product's
         #  manufacturer and model tokens, respectively, as sublists, we
         #  consider the product to be a potential match for the listing.
-        if not Matcher.contains(listing.tokens.manufacturer,
-                product.tokens.manufacturer):
+        if Matcher.find(listing.tokens.manufacturer,
+                product.tokens.manufacturer) == -1:
             return False
-        if not Matcher.contains(listing.tokens.title, product.tokens.model):
-            return False
-        return True
+        return Matcher.find(listing.tokens.title, product.tokens.model) != -1
 
     @staticmethod 
     def detail_compare(listing, a, b):
-        """Decide whether one match is more detailed than another."""
+        """Decide whether one product is a closer match than another."""
+        # Does one have a family match whereas the other does not?
         a_family_match = hasattr(a.tokens, 'family') and \
-                Matcher.contains(listing.tokens.title, a.tokens.family)
+                Matcher.find(listing.tokens.title, a.tokens.family) >= 0
         b_family_match = hasattr(b.tokens, 'family') and \
-                Matcher.contains(listing.tokens.title, b.tokens.family)
+                Matcher.find(listing.tokens.title, b.tokens.family) >= 0
         if a_family_match and not b_family_match:
             return -1
         if not a_family_match and b_family_match:
             return 1
+        # Does one product have more tokens than the other?
         a_num_tokens = len(a.tokens.model)
         b_num_tokens = len(b.tokens.model)
         if a_num_tokens > b_num_tokens:
             return -1
         if a_num_tokens < b_num_tokens:
             return 1
+        # Does one product have a longer model name than the other?
         a_total_length = sum(map(lambda t: len(t.text), a.tokens.model))
         b_total_length = sum(map(lambda t: len(t.text), b.tokens.model))
         if a_total_length > b_total_length:
@@ -250,18 +265,45 @@ class TightMatcher(Matcher):
     def listing_may_match_product(listing, product):
         """Decide whether a listing is potentially matched by a product."""
         # If the product has a family value, we require that it be present
-        #  in the listing. If there is no family value (scandalous!), we
-        #  call LooseMatcher's method.
+        #  in the listing and that it immediately precede the model value.
+        # The other criteria are the same as in loose matching.
+        title_tokens = listing.tokens.title
+        model_tokens = product.tokens.model
+        model_starts = Matcher.find_all(title_tokens, model_tokens)
+        if len(model_starts) == 0:
+            return False
         if hasattr(product, 'family'):
-            if not Matcher.contains(listing.tokens.title,
-                    product.tokens.family):
+            family_tokens = product.tokens.family
+            family_starts = Matcher.find_all(title_tokens, family_tokens)
+            if len(family_starts) == 0:
                 return False
-        return LooseMatcher.listing_may_match_product(listing, product)
+            # Check every family occurrence to see if it immediately precedes
+            #  any of the model occurrences.
+            found = False
+            model_start_set = set(model_starts)
+            num_family_tokens = len(family_tokens)
+            for family_start in family_starts:
+                if family_start + num_family_tokens in model_start_set:
+                    found = True
+                    break
+            if not found:
+                return False
+        return Matcher.find(listing.tokens.manufacturer,
+                product.tokens.manufacturer) != -1
 
     @staticmethod
     def detail_compare(listing, a, b):
-        """Decide whether one match is more detailed than another."""
-        return LooseMatcher.detail_compare(listing, a, b)
+        """Decide whether one product is a closer match than another."""
+        # Does one have a family match whereas the other does not?
+        a_family_match = hasattr(a.tokens, 'family') and \
+                Matcher.find(listing.tokens.title, a.tokens.family) >= 0
+        b_family_match = hasattr(b.tokens, 'family') and \
+                Matcher.find(listing.tokens.title, b.tokens.family) >= 0
+        if a_family_match and not b_family_match:
+            return -1
+        if not a_family_match and b_family_match:
+            return 1
+        return 0
 
 
 class Product:
