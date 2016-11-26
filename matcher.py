@@ -265,8 +265,8 @@ class TightMatcher(Matcher):
     def listing_may_match_product(listing, product):
         """Decide whether a listing is potentially matched by a product."""
         # If the product has a family value, we require that it be present
-        #  in the listing and that it immediately precede the model value.
-        # The other criteria are the same as in loose matching.
+        #  in the listing and that it occur immediately before or after the
+        #  model value. The other criteria are the same as in loose matching.
         title_tokens = listing.tokens.title
         model_tokens = product.tokens.model
         model_starts = Matcher.find_all(title_tokens, model_tokens)
@@ -278,12 +278,14 @@ class TightMatcher(Matcher):
             if len(family_starts) == 0:
                 return False
             # Check every family occurrence to see if it immediately precedes
-            #  any of the model occurrences.
+            #  or succeeds any of the model occurrences.
             found = False
             model_start_set = set(model_starts)
             num_family_tokens = len(family_tokens)
+            num_model_tokens = len(model_tokens)
             for family_start in family_starts:
-                if family_start + num_family_tokens in model_start_set:
+                if family_start + num_family_tokens in model_start_set or \
+                   family_start - num_model_tokens in model_start_set:
                     found = True
                     break
             if not found:
