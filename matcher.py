@@ -305,6 +305,11 @@ class TightMatcher(Matcher):
             return -1
         if not a_family_match and b_family_match:
             return 1
+        # Is one model a strict superlist of the other model?
+        if Matcher.find(a.tokens.model, b.tokens.model) >= 0:
+            return -1
+        if Matcher.find(b.tokens.model, a.tokens.model) >= 0:
+            return 1
         return 0
 
 

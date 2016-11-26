@@ -10,25 +10,25 @@ line 258:
   {"product_name":"Samsung_SL202","manufacturer":"Samsung","model":"SL202"...}
 
 Although the product_name property differs, the manufacturer and model
-properties are identical. We can filter out duplicate products at various
-stages in the matching process. If we do so before looking for matches,
-we don't have to deal with duplicate products during disambiguation. So
-let's do that. In each group of duplicate products, we'll use the one
-that occurs first and discard the rest.
+properties are identical. I can filter out duplicate products at various
+stages in the matching process. If I do so before looking for matches,
+I don't have to deal with duplicate products during disambiguation. So
+I'll do that. In each group of duplicate products, I'll use the one that
+occurs first and discard the rest.
 
 
--- Disambiguation: handling cases with multiple candidates
+-- Loose rules for disambiguating cases with multiple candidate products
 
-If there are more than two candidates, we declare no match.
+If a listing has more than two candidate products, I declare no match.
 
-Otherwise, we choose the product with the most detailed match.
+Otherwise, I choose the product with the most detailed match.
 
 Product A has a more detailed match than product B...
 - if A's family matches the listing and B's family does not (or is null)
 - otherwise, if A has more model tokens than B
 - otherwise, if the sum of the lengths of A's model tokens exceeds that of B
 
-If there is still a tie, we declare no match.
+If there is still a tie, I declare no match.
 
 
 -- Troublesome listings
@@ -55,9 +55,9 @@ If there is still a tie, we declare no match.
 - I could eliminate this by requiring a family match
 
 
--- Dilemma
+-- Tightening listing_may_match_product()
 
-Should we require that the product family, if specified for a product,
+Should I require that the product family, if specified for a product,
 be present in the listing? This would improve precision at the expense
 of recall. It seems to be a shame to lose a bunch of listings that merely
 fail to mention the product family.
@@ -68,11 +68,12 @@ more important than recall:
   "Precision is critical. We much prefer missed matches (lower recall)
   over incorrect matches, so try hard to avoid false positives."
 
-What if we only require the family to match in ambiguous cases? Hmm. What
-to do? Code it and run it. Get some hard stats. View the results.
+Alright then. Henceforth I require the product family to occur in the
+listing. I hope the loss in recall will be acceptable when weighed
+against the increase in precision.
 
 
--- Making detail_compare more conservative
+-- Tightening detail_compare()
 
 Currently I rely on the three rules in detail_compare to disambiguate
 multiple-match cases. The first rule is conceptually sound: if candidate
@@ -97,7 +98,7 @@ precision on a different test set. Therefore, I'll abandon them even
 though I know my recall will decline. Precision is paramount.
 
 
--- Further tightening
+-- Further tightening listing_may_match_product()
 
 I can eliminate some spurious matches by requiring the family value, if
 any, to occur immediately before the model in the listing. For example,
@@ -114,13 +115,29 @@ equivalent to concatenating the family tokens and model tokens. However,
 I'll keep the token lists separate so that I can easily switch between
 loose matching and tight matching.
 
-I hope the loss in recall will be acceptable when weighed against the
-increase in precision.
+Note the reverse order in listing 11187:
+
+  Canon A3200 IS PowerShot; 14.1 MP; Fine; Norm; 4320 x 3240 pixels; (L) 4320
+  x 3240; (M1) 3072 x 2304; (M2) 1600 x 1200; (S) 640 x 480; (W) 4320 x 2432;
+  4 x; 5 x (5041B010AA)
+
+So I'm loosening the new requirement slightly by allowing the family
+value to occur immediately after the model value. After implementation,
+visual inspection shows improved recall without loss of precision.
 
 
+-- Slightly loosening detail_compare()
 
--- A slight loosening
+The quirky disambiguation rules based on the number of tokens often
+yield good matches in cases where model text A includes model text B. In
+other words, B is a strict substring of A, which means that A is the
+more detailed model name and thus the closer match.
 
-check whether one product's model is a superlist of the other's
+Having gotten rid of the quirky rules, I'm adding a sensible rule that
+considers whether one candidate's model tokens are a strict superlist
+of another candidate's. If so, the former takes precedence.
+
+The new rule is evaluated after the family comparison. It has already
+been established that neither candidate has a better family match.
 
 
