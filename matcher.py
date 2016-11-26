@@ -10,7 +10,6 @@ class Matcher:
     def __init__(self, products, listings):
         self.products, self.listings = products, listings
         self.match_all_products()
-        self.print_candidate_counts()
         self.disambiguate_matches()
         self.print_candidate_counts()
 
@@ -215,8 +214,7 @@ class LooseMatcher(Matcher):
         if not Matcher.contains(listing.tokens.manufacturer,
                 product.tokens.manufacturer):
             return False
-        if not Matcher.contains(listing.tokens.title,
-                product.tokens.model):
+        if not Matcher.contains(listing.tokens.title, product.tokens.model):
             return False
         return True
 
@@ -246,15 +244,24 @@ class LooseMatcher(Matcher):
         return 0
 
 
-class StrictMatcher(Matcher):
+class TightMatcher(Matcher):
 
     @staticmethod
     def listing_may_match_product(listing, product):
         """Decide whether a listing is potentially matched by a product."""
+        # If the product has a family value, we require that it be present
+        #  in the listing. If there is no family value (scandalous!), we
+        #  call LooseMatcher's method.
+        if hasattr(product, 'family'):
+            if not Matcher.contains(listing.tokens.title,
+                    product.tokens.family):
+                return False
+        return LooseMatcher.listing_may_match_product(listing, product)
 
     @staticmethod
     def detail_compare(listing, a, b):
         """Decide whether one match is more detailed than another."""
+        return LooseMatcher.detail_compare(listing, a, b)
 
 
 class Product:
@@ -356,10 +363,10 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings_a.txt'
+    listings_name = 'listings.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
-    matcher = LooseMatcher(products, listings)
+    matcher = TightMatcher(products, listings)
     with open('js/data.js', 'w') as file:
         matcher.output_json(file)
 

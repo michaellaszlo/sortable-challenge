@@ -35,7 +35,13 @@ If there is still a tie, we declare no match.
 
 17
 - this looks like a detailed match except that the listing is about a battery
-- I don't see how I can eliminate this without hard-core NLP
+- I don't see how I can eliminate this without natural-language parsing
+
+7241
+- as with listing 17, the match looks pretty good unless you understand English
+
+756, 1349, 1452, 1453
+- if I require that the family occur right before the model, these will fail
 
 22
 - mentions many products, only two of which are listed in products.txt

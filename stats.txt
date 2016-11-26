@@ -17,5 +17,23 @@ After removing duplicate products:
 6: 2 0.0%
 8: 3 0.0%
 
+Loose matching: no family requirement, quirky disambiguation
+0: 10646 52.7%
+1: 8969 44.4%
+2: 564 2.8%
+3: 9 0.0%
+4: 3 0.0%
+6: 2 0.0%
+8: 3 0.0%
+
+With the family requirement:
+0: 12041 59.6%
+1: 8143 40.3%
+2: 2 0.0%
+3: 3 0.0%
+4: 2 0.0%
+5: 1 0.0%
+6: 4 0.0%
+
 
 
