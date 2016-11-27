@@ -27,6 +27,7 @@ class Matcher:
         self.index_all_listings()
         for listing in self.listings:
             listing.candidates = []
+            listing.best_candidate = None
         for product in self.products:
             self.match_product(product)
 
@@ -45,7 +46,7 @@ class Matcher:
             if hasattr(product, 'family'):
                 values.append(product.family)
             values.append(product.model)
-            # It's safe to join with a space--we stripped spaces from values.
+            # It's safe to join with a space -- values were stripped of spaces.
             key = ' '.join(map(reduce, values))
             if key in product_keys:
                 continue
@@ -185,7 +186,7 @@ class Matcher:
             print('%d: %d %.1f%%' % (count, frequency, proportion))
         print('')
     
-    def output_json(self, file):
+    def write_json(self, file):
         """Convert products and listings into dictionaries, then print JSON."""
         product_items = len(self.products) * [ None ]
         for i, product in enumerate(self.products):
@@ -215,6 +216,19 @@ class Matcher:
                 item['bestCandidateKey'] = listing.best_candidate.id
         file.write('var listings = %s;\n' % (json.dumps(listing_items)))
                 #sort_keys=True, indent=2)))
+
+    def write_results(self, file):
+        result_map = {}
+        for listing in self.listings:
+            product = listing.best_candidate
+            if product == None:
+                continue
+            result_map.setdefault(product.product_name, []).append(listing)
+        file.write('\n'.join(json.dumps(
+                { 'product_name': product_name,
+                  'listings': [ listing.data for listing in listings ] },
+                ensure_ascii=False) for product_name, listings in
+                result_map.items()))
 
 
 class LooseMatcher(Matcher):
@@ -316,23 +330,22 @@ class TightMatcher(Matcher):
 class Product:
 
     def __init__(self, data):
-        set_data(self, data, 'id', 'manufacturer', 'family', 'model')
+        set_data(self, data)
         tokenize_attributes(self, 'manufacturer', 'family', 'model')
 
     def __str__(self):
         family = self.family if hasattr(self, 'family') else '-'
-        return str((self.id, self.manufacturer, family, self.model))
+        return ' '.join([ self.id, self.manufacturer, family, self.model ])
 
 
 class Listing:
 
     def __init__(self, data):
-        set_data(self, data, 'id', 'manufacturer', 'title')
+        set_data(self, data)
         tokenize_attributes(self, 'manufacturer', 'title')
-        self.best_candidate = None
 
     def __str__(self):
-        return str((self.manufacturer, self.title))
+        return ' '.join([ self.id, self.manufacturer, self.title ])
 
 
 class Token:
@@ -349,12 +362,14 @@ class Container:
             setattr(self, name, value)
 
 
-def set_data(item, data, *names):
-    """Set item attributes by getting named values from a data dictionary."""
-    for name in names:
-        if name in data:
-            setattr(item, name, data[name])
-    item.data = data
+def set_data(item, data, copy_id=False):
+    """Set item attributes using values from a data dictionary."""
+    for key, value in data.items():
+        setattr(item, key, value)
+    # Save a copy of the data for later use in logging and reporting.
+    item.data = data.copy()
+    if not copy_id:
+        del item.data['id']
 
 def tokenize_attributes(item, *names):
     """Convert the named attributes into lists of canonical tokens.""" 
@@ -416,8 +431,10 @@ def main():
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
-    with open('js/data.js', 'w') as file:
-        matcher.output_json(file)
+    #with open('js/data.js', 'w') as file:
+    #    matcher.write_json(file)
+    with open('results.txt', 'w') as file:
+        matcher.write_results(file)
 
 
 if __name__ == '__main__':

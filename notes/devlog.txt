@@ -17,13 +17,25 @@ I'll do that. In each group of duplicate products, I'll use the one that
 occurs first and discard the rest.
 
 
+-- Loose matching
+
+A product is a candidate match for a listing if:
+- the product's manufacturer tokens are a sublist of the listing's
+  manufacturer tokens
+- the product's model tokens are a sublist of the listing's
+  title tokens
+
+Unlike a subsequence, a sublist only occurs when its list elements are
+immediately adjacent to one another, in order, within the superlist.
+
+
 -- Loose rules for disambiguating cases with multiple candidate products
 
 If a listing has more than two candidate products, I declare no match.
 
-Otherwise, I choose the product with the most detailed match.
+Otherwise, I choose the product with the more detailed match.
 
-Product A has a more detailed match than product B...
+Product A is a more detailed match than product B...
 - if A's family matches the listing and B's family does not (or is null)
 - otherwise, if A has more model tokens than B
 - otherwise, if the sum of the lengths of A's model tokens exceeds that of B
@@ -38,7 +50,7 @@ If there is still a tie, I declare no match.
 - I don't see how I can eliminate this without natural-language parsing
 
 7241
-- as with listing 17, the match looks pretty good unless you understand English
+- as with listing 17, the match looks good unless you understand English
 
 756, 1349, 1452, 1453
 - if I require that the family occur right before the model, these will fail
@@ -48,7 +60,7 @@ If there is still a tie, I declare no match.
 - sometimes the product list isn't comprehensive enough, but in this
   case the listing is erroneous: the product names are reversed
 - even the two matches aren't right: the tokens are separated by commas
-- one of the two has a more detailed match than the rest
+- one of the two is a more detailed match than the rest
 
 15274
 - matches product 123, the Leica Digilux Zoom
@@ -128,10 +140,10 @@ visual inspection shows improved recall without loss of precision.
 
 -- Slightly loosening detail_compare()
 
-The quirky disambiguation rules based on the number of tokens often
-yield good matches in cases where model text A includes model text B. In
-other words, B is a strict substring of A, which means that A is the
-more detailed model name and thus the closer match.
+The quirky disambiguation rules based on the number of tokens often yield
+good matches in cases where model text A includes model text B. In other
+words, B's tokens are a strict sublist of A's tokens, which means that
+A is the more detailed model name and thus the closer match.
 
 Having gotten rid of the quirky rules, I'm adding a sensible rule that
 considers whether one candidate's model tokens are a strict superlist
@@ -139,5 +151,31 @@ of another candidate's. If so, the former takes precedence.
 
 The new rule is evaluated after the family comparison. It has already
 been established that neither candidate has a better family match.
+
+
+-- Tight matching
+
+If a product has family tokens, they must be a sublist of the listing's
+family tokens. This implies that there is no match if the listing has
+no family tokens.
+
+The remaining conditions are the same as for loose matching.
+
+
+-- Tight disambiguation
+
+As with loose disambiguation, I abandon the attempt if there are more
+than two candidate products.
+
+Product A is a more detailed match than product B...
+- if A's family matches the listing and B's family does not (or is null)
+- otherwise, if A's model tokens are a superlist of B's model tokens
+
+There is some redundancy in the first test. Because tight matching
+already requires a family match for products that have a family, it would
+suffice to test whether A has a family and B does not. By this point it
+is guaranteed that if A has a family, it occurs in the listing. However,
+I prefer to use the redundant condition for clarity and for robustness
+in case the code undergoes changes.
 
 
