@@ -3,6 +3,7 @@ import os.path
 import random
 import re
 import string
+import sys
 
 
 class Matcher:
@@ -181,11 +182,10 @@ class Matcher:
             if listing.best_candidate != None:
                 count = 1
             counts[count] = counts.setdefault(count, 0) + 1
-        print('candidate count frequencies:')
+        print('candidate-count frequencies:')
         for count, frequency in sorted(counts.items()):
             proportion = 100.0 * frequency / len(self.listings)
-            print('%d: %d %.1f%%' % (count, frequency, proportion))
-        print('')
+            print('%3d: %d %.1f%%' % (count, frequency, proportion))
     
     def write_js(self, file):
         """Convert products and listings into dictionaries. Write a JS file."""
@@ -200,8 +200,8 @@ class Matcher:
                 item[field] = { 'text': getattr(product, field),
                         'tokenSpans': [ token.span for
                                 token in getattr(product.tokens, field) ] }
-        file.write('var products = %s;\n' % (json.dumps(product_items)))
-                #sort_keys=True, indent=2)))
+        file.write('var products = %s;\n' % (json.dumps(product_items,
+                ensure_ascii=False)))
         listing_items = len(self.listings) * [ None ]
         for i, listing in enumerate(self.listings):
             item = listing_items[i] = { 'id': listing.id }
@@ -215,8 +215,8 @@ class Matcher:
                     product in listing.candidates ]
             if listing.best_candidate != None:
                 item['bestCandidateKey'] = listing.best_candidate.id
-        file.write('var listings = %s;\n' % (json.dumps(listing_items)))
-                #sort_keys=True, indent=2)))
+        file.write('var listings = %s;\n' % (json.dumps(listing_items,
+                ensure_ascii=False)))
 
     def write_results(self, file):
         """Write out final matches in the format specified for the challenge."""
@@ -283,16 +283,22 @@ class Matcher:
                     for token in reversed(getattr(product.tokens, name)):
                         a, b = token.span
                         highlight_map[text_lower[a:b]] = name
-                        text = text[:a] + ''.join([ '<span class="match ',
-                                name, '">', text[a:b], '</span>', text[b:] ])
+                        text = self.insert_highlighting(text, a, b, name)
                     group_node.add(self.make_pair_node(name, text, name))
-            # Turn listing fields into nodes.
+            # Highlight listing fields and turn them into nodes.
             for name in [ 'manufacturer', 'title' ]:
                 highlight_map = getattr(highlight_maps, name)
-                listing_node.add(self.make_pair_node(name,
-                        getattr(listing, name), name))
-                if name == 'manufacturer':
+                text = getattr(listing, name)
+                text_lower = text.lower()
+                for token in reversed(getattr(listing.tokens, name)):
+                    a, b = token.span
+                    key = text_lower[a:b]
+                    if key in highlight_map:
+                        field_name = highlight_map[key]
+                        text = self.insert_highlighting(text, a, b, field_name)
+                if name == 'title':
                     listing_node.add('<br>')
+                listing_node.add(self.make_pair_node(name, text, name))
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
         # Alter each group header to show the number of listings it contains.
         total_count = len(self.listings)
@@ -318,6 +324,11 @@ class Matcher:
         return HTMLNode('div', { 'class': class_name },
                 [ HTMLNode('span', { 'class': 'key' }, [ key ]),
                   HTMLNode('span', { 'class': 'value' }, [ value ]) ])
+
+    @staticmethod
+    def insert_highlighting(text, a, b, field_name):
+        return ''.join([ text[:a], '<span class="match ',
+                field_name, '">', text[a:b], '</span>', text[b:] ])
 
 
 class HTMLNode:
@@ -559,21 +570,20 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings_a.txt'
+    listings_name = 'listings.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
-    #with open('js/data.js', 'w') as file:
-    #    matcher.write_js(file)
     fragment_dir = 'fragments'
     header = open(os.path.join(fragment_dir, 'header.html')).read()
     footer = open(os.path.join(fragment_dir, 'footer.html')).read()
-    with open('view_listings.html', 'w') as file:
-        matcher.write_html(file, header, footer)
-    #with open('results.txt', 'w') as file:
-    #    matcher.write_results(file)
+    #with open('view_listings.html', 'w') as file:
+    #    matcher.write_html(file, header, footer)
+    with open('results.txt', 'w') as file:
+        matcher.write_results(file)
 
-
+if sys.version_info.major < 3:
+    sys.exit('Python 3 required')
 if __name__ == '__main__':
     main()
 
