@@ -1,5 +1,6 @@
 """A solution to the Sortable coding challenge."""
 
+import inspect
 import json
 import os.path
 import random
@@ -561,18 +562,17 @@ class Parser:
 
 class Main:
 
-    def __init__(self):
+    def __init__(self, products_path, listings_path, results_path):
+        self.load_data(products_path, listings_path)
         self.make_matcher()
-        self.write_results()
-        self.write_html()
+        self.write_results(results_path)
+
+    def load_data(self, products_path, listings_path):
+        self.products = self.load(Product, products_path)
+        self.listings = self.load(Listing, listings_path)
 
     def make_matcher(self):
-        data_dir = 'data/dev'
-        products_name = 'products.txt'
-        listings_name = 'listings.txt'
-        products = self.load(Product, os.path.join(data_dir, products_name))
-        listings = self.load(Listing, os.path.join(data_dir, listings_name))
-        self.matcher = TightMatcher(products, listings)
+        self.matcher = TightMatcher(self.products, self.listings)
 
     @staticmethod
     def load(Item, file_path):
@@ -587,25 +587,36 @@ class Main:
                 items.append(Item(data))
         return items
 
-    def write_results(self):
-        with open('results.txt', 'w') as file:
+    def write_results(self, results_path):
+        with open(results_path, 'w') as file:
             self.matcher.write_results(file)
 
-    def write_js(self):
-        with open('viewer/js/data.js', 'w') as file:
+    def write_js(self, viewer_dir):
+        js_path = os.path.join(viewer_dir, 'js/data.js')
+        with open(js_path, 'w') as file:
             self.matcher.write_js(file)
 
-    def write_html(self):
-        fragment_dir = 'viewer/fragments'
+    def write_html(self, viewer_dir):
+        fragment_dir = os.path.join(viewer_dir, 'fragments')
         header = open(os.path.join(fragment_dir, 'header.html')).read()
         footer = open(os.path.join(fragment_dir, 'footer.html')).read()
-        with open('viewer/listings.html', 'w') as file:
+        html_path = os.path.join(viewer_dir, 'listings.html')
+        with open(path, 'w') as file:
             self.matcher.write_html(file, header, footer)
 
 
-if sys.version_info.major < 3:
-    sys.exit('Python 3 required')
+if sys.version_info.major != 3 or sys.version_info.minor < 2:
+    sys.exit('Python version >= 3.2 required')
 
 if __name__ == '__main__':
-    Main()
+    # Use relative paths for the required input/output files.
+    products_path = 'products.txt'
+    listings_path = 'listings.txt'
+    results_path = 'results.txt'
+    # For the HTML viewer, get the absolute path of the script's location.
+    script_dir = os.path.dirname(os.path.abspath(
+            inspect.getframeinfo(inspect.currentframe()).filename))
+    viewer_dir = os.path.join(script_dir, 'viewer')
+    main = Main(products_path, listings_path, results_path)
+    #main.write(viewer_dir)
 
