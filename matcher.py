@@ -14,15 +14,15 @@ class Matcher:
         self.print_candidate_counts()
 
     def match_all_products(self):
-        """Iterate over products first to match them with listings. This
-        approach is faster than iterating over listings first, due to our use
-        of token indexing to shrink the set of listings to consider for a
-        product. It only makes sense to index the listings, not the products,
-        because we deem a listing to match if it contains a sublist of product
-        tokens. In other words, the product tokens act as a query and the
-        listing tokens act as a document to which we apply the query. Thus,
-        it is the listings (the documents) that must be indexed.
-        """
+        """Iterate over products first to match them with listings."""
+        # This approach is faster than iterating over listings first, due to
+        #  our use of token indexing to shrink the set of listings to consider
+        #  for a product. It only makes sense to index the listings, not the
+        #  products, because we deem a listing to match if it contains a
+        #  sublist of product tokens. The product tokens act as a query and
+        #  the listing tokens act as a document to which we apply the query.
+        #  Thus, it is the listings -- the documents, as it were -- that must
+        #  be indexed.
         self.remove_duplicate_products()
         self.index_all_listings()
         for listing in self.listings:
@@ -87,16 +87,15 @@ class Matcher:
                 if len(try_listings) < len(listings):
                     listings = try_listings
         for listing in listings:
-            if self.listing_may_match_product(listing, product):
+            if self.is_candidate_match(listing, product):
                 listing.candidates.append(product)
 
     def match_all_listings(self):
-        """Iterate over listings first to match them with products. This
-        produces the same results as iterating over products first, but
-        it is slower because we can't take advantage of token indexing to
-        quickly shrink the set of products. It is useful for verifying
-        the correctness of match_all_products().
-        """
+        """Iterate over listings first to match them with products."""
+        # This produces the same results as iterating over products first, but
+        #  it is slower because we can't take advantage of token indexing to
+        #  quickly shrink the set of products. It is useful for verifying
+        #  the correctness of match_all_products().
         for listing in self.listings:
             self.match_listing(listing)
 
@@ -104,7 +103,7 @@ class Matcher:
         """Find products that may match the given listing."""
         listing.candidates = []
         for product in self.products:
-            if self.listing_may_match_product(listing, product):
+            if self.is_candidate_match(listing, product):
                 listing.candidates.append(product)
 
     @staticmethod
@@ -122,7 +121,7 @@ class Matcher:
 
     @staticmethod
     def find_all(tokens, sublist):
-        """Search a token list for a sublist. Return all start indices."""
+        """Search a token list for a sublist. Return a list of start indices."""
         result = []
         for start in range(0, len(tokens) - len(sublist) + 1):
             okay = True
@@ -146,12 +145,12 @@ class Matcher:
                 listing.best_candidate = candidates[0]
                 continue
             self.detail_sort(listing, candidates)
-            if self.detail_compare(listing, candidates[0], candidates[1]) == 0:
+            if self.compare_details(listing, candidates[0], candidates[1]) == 0:
                 continue
             listing.best_candidate = candidates[0]
 
     def detail_sort(self, listing, products, start=0, length=None):
-        """Sort products in place, calling detail_compare() on product pairs."""
+        """Sort products in place, using compare_details() for product pairs."""
         a = products
         if length == None:
             length = len(a)
@@ -164,7 +163,7 @@ class Matcher:
         pivot = a[pivot_pos]
         a[pivot_pos] = a[right]
         for pos in range(start, right):
-            if self.detail_compare(listing, a[pos], pivot) == -1:
+            if self.compare_details(listing, a[pos], pivot) == -1:
                 a[left], a[pos] = a[pos], a[left]
                 left += 1
         a[right] = a[left]
@@ -177,6 +176,8 @@ class Matcher:
         counts = {}
         for listing in self.listings:
             count = len(listing.candidates)
+            # If a multiple-candidate case was successfully resolved, count
+            #  it as a single-candidate case.
             if listing.best_candidate != None:
                 count = 1
             counts[count] = counts.setdefault(count, 0) + 1
@@ -186,8 +187,8 @@ class Matcher:
             print('%d: %d %.1f%%' % (count, frequency, proportion))
         print('')
     
-    def write_json(self, file):
-        """Convert products and listings into dictionaries, then print JSON."""
+    def write_js(self, file):
+        """Convert products and listings into dictionaries. Write a JS file."""
         product_items = len(self.products) * [ None ]
         for i, product in enumerate(self.products):
             item = product_items[i] = { 'id': product.id }
@@ -196,9 +197,9 @@ class Matcher:
                 if not hasattr(product, field):
                     continue
                 # Make a dictionary containing text and tokens.
-                web_tokens = item[field] = { 'text': getattr(product, field) }
-                web_tokens['tokenSpans'] = [ token.span for
-                        token in getattr(product.tokens, field) ]
+                item[field] = { 'text': getattr(product, field),
+                        'tokenSpans': [ token.span for
+                                token in getattr(product.tokens, field) ] }
         file.write('var products = %s;\n' % (json.dumps(product_items)))
                 #sort_keys=True, indent=2)))
         listing_items = len(self.listings) * [ None ]
@@ -206,9 +207,9 @@ class Matcher:
             item = listing_items[i] = { 'id': listing.id }
             for field in [ 'manufacturer', 'title' ]:
                 # Make a dictionary containing text and tokens.
-                web_tokens = item[field] = { 'text': getattr(listing, field) }
-                web_tokens['tokenSpans'] = [ token.span for
-                        token in getattr(listing.tokens, field) ]
+                item[field] = { 'text': getattr(listing, field),
+                        'tokenSpans': [ token.span for
+                                token in getattr(listing.tokens, field) ] }
             listing.candidates.sort(key=lambda p: p.id)
             item['candidateKeys'] = [ product.id for
                     product in listing.candidates ]
@@ -218,6 +219,7 @@ class Matcher:
                 #sort_keys=True, indent=2)))
 
     def write_results(self, file):
+        """Write out final matches in the format specified for the challenge."""
         result_map = {}
         for listing in self.listings:
             product = listing.best_candidate
@@ -228,13 +230,75 @@ class Matcher:
                 { 'product_name': product_name,
                   'listings': [ listing.data for listing in listings ] },
                 ensure_ascii=False) for product_name, listings in
-                result_map.items()))
+                sorted(result_map.items())) + '\n')
+
+    def write_html(self, file, header, footer):
+        """Generate a static HTML file displaying listings with candidates."""
+        multiple_unresolved = self.make_group_node('Unresolved multiple', 's')
+        multiple_resolved = self.make_group_node('Resolved multiple', 's')
+        one = self.make_group_node('Single')
+        zero = self.make_group_node('No')
+        for listing in self.listings:
+            count = len(listing.candidates)
+            best_candidate = listing.best_candidate
+            if count == 0:
+                group = zero
+            elif count == 1:
+                group = one
+            elif best_candidate != None:
+                group = multiple_resolved
+            else:
+                group = multiple_unresolved
+        wrapper = HTMLNode('div', { 'id': 'wrapper' })
+        for group in [ multiple_unresolved, multiple_resolved, one, zero ]:
+            wrapper.children.append(group)
+        file.write(header)
+        file.write(wrapper.to_text())
+        file.write(footer)
+
+    @staticmethod
+    def make_group_node(header_text, plural=''):
+        return HTMLNode('div', { 'className': 'group' },
+                [ HTMLNode('h2', { 'className': 'header' },
+                        [ header_text + ' candidate' + plural ]) ])
+
+
+class HTMLNode:
+
+    indent = '  '
+
+    def __init__(self, name, attributes={}, children=[]):
+        self.name = name
+        self.attributes = attributes
+        self.children = children
+
+    def to_text(self, depth=0):
+        parts = []
+        # Opening tag.
+        parts.extend(depth * [ self.indent ])
+        parts.extend([ '<', self.name ])
+        for key, value in self.attributes.items():
+            parts.extend([ ' ', key, '="', value, '"' ])
+        parts.append('>\n')
+        # Children.
+        for child in self.children:
+            if type(child) == HTMLNode:
+                parts.append(child.to_text(depth + 1))
+            else:
+                parts.extend((depth + 1) * [ self.indent ])
+                parts.append(str(child))
+                parts.append('\n')
+        # Closing tag.
+        parts.extend(depth * [ self.indent ])
+        parts.extend([ '</', self.name, '>\n' ])
+        # Done.
+        return ''.join(parts)
 
 
 class LooseMatcher(Matcher):
 
     @staticmethod
-    def listing_may_match_product(listing, product):
+    def is_candidate_match(listing, product):
         """Decide whether a listing is potentially matched by a product."""
         # If a listing's manufacturer and title tokens include a product's
         #  manufacturer and model tokens, respectively, as sublists, we
@@ -245,9 +309,9 @@ class LooseMatcher(Matcher):
         return Matcher.find(listing.tokens.title, product.tokens.model) != -1
 
     @staticmethod 
-    def detail_compare(listing, a, b):
+    def compare_details(listing, a, b):
         """Decide whether one product is a closer match than another."""
-        # Does one have a family match whereas the other does not?
+        # Does one product have a family match whereas the other does not?
         a_family_match = hasattr(a.tokens, 'family') and \
                 Matcher.find(listing.tokens.title, a.tokens.family) >= 0
         b_family_match = hasattr(b.tokens, 'family') and \
@@ -276,7 +340,7 @@ class LooseMatcher(Matcher):
 class TightMatcher(Matcher):
 
     @staticmethod
-    def listing_may_match_product(listing, product):
+    def is_candidate_match(listing, product):
         """Decide whether a listing is potentially matched by a product."""
         # If the product has a family value, we require that it be present
         #  in the listing and that it occur immediately before or after the
@@ -308,7 +372,7 @@ class TightMatcher(Matcher):
                 product.tokens.manufacturer) != -1
 
     @staticmethod
-    def detail_compare(listing, a, b):
+    def compare_details(listing, a, b):
         """Decide whether one product is a closer match than another."""
         # Does one have a family match whereas the other does not?
         a_family_match = hasattr(a.tokens, 'family') and \
@@ -413,7 +477,7 @@ def parse_token(char_set, text, pos):
     return pos, token
 
 def load_items(Item, file_path):
-    """Make a list of Item objects based on a file of JSON lines."""
+    """Make a list of Item objects from a file of JSON lines."""
     items = []
     with open(file_path) as file:
         for line_index, line in enumerate(file.readlines()):
@@ -427,14 +491,19 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings.txt'
+    listings_name = 'listings_a.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
     #with open('js/data.js', 'w') as file:
-    #    matcher.write_json(file)
-    with open('results.txt', 'w') as file:
-        matcher.write_results(file)
+    #    matcher.write_js(file)
+    fragment_dir = 'fragments'
+    header = open(os.path.join(fragment_dir, 'header.html')).read()
+    footer = open(os.path.join(fragment_dir, 'footer.html')).read()
+    with open('view_listings.html', 'w') as file:
+        matcher.write_html(file, header, footer)
+    #with open('results.txt', 'w') as file:
+    #    matcher.write_results(file)
 
 
 if __name__ == '__main__':

@@ -36,7 +36,7 @@ Requiring the product family, if specified, to occur in the listing:
 6: 4 0.0%       + 2 0.0%
 8: 0            - 3 0.0%
 
-Without disambiguation based on token count and total token length:
+Without quirky disambiguation (token count and total token length):
 0: 12041 59.6%
 1: 7998 39.6%   - 145 0.7%
 2: 147 0.7%     + 145 0.7%
