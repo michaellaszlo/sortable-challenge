@@ -599,7 +599,7 @@ class Main:
         fragment_dir = 'viewer/fragments'
         header = open(os.path.join(fragment_dir, 'header.html')).read()
         footer = open(os.path.join(fragment_dir, 'footer.html')).read()
-        with open('viewer/dynamic_listings.html', 'w') as file:
+        with open('viewer/listings.html', 'w') as file:
             self.matcher.write_html(file, header, footer)
 
 

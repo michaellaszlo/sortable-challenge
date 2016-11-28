@@ -1,6 +1,9 @@
+"""An in-place implementation of quicksort."""
+
 import random
 
 def sort(a, start=0, length=None):
+    """Recursively sort part of a list."""
     if length == None:
         length = len(a)
     if length < 2:
@@ -19,18 +22,23 @@ def sort(a, start=0, length=None):
     sort(a, start, left - start)
     sort(a, left + 1, right - left)
 
-if __name__ == '__main__':
+def test():
+    """Generate random lists and test our sorting against Python's sorting."""
     okay = True
     for i in range(10**4):
-        a = [ random.randrange(10) for i in range(20) ]
-        b = sorted(a)
-        c = a[:]
-        sort(c)
-        if c != b:
-            print('original', a)
-            print('expected', b)
-            print('computed', c)
+        original = [ random.randrange(10) for i in range(20) ]
+        computed = original[:]
+        sort(computed)
+        expected = sorted(original)
+        if computed != expected:
+            print('original', original)
+            print('expected', expected)
+            print('computed', computed)
             okay = False
             break
     print('success' if okay else 'error')
+
+
+if __name__ == '__main__':
+    test()
 
