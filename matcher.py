@@ -1,5 +1,6 @@
 """A solution to the Sortable coding challenge."""
 
+import argparse
 import inspect
 import json
 import os.path
@@ -601,22 +602,38 @@ class Main:
         header = open(os.path.join(fragment_dir, 'header.html')).read()
         footer = open(os.path.join(fragment_dir, 'footer.html')).read()
         html_path = os.path.join(viewer_dir, 'listings.html')
-        with open(path, 'w') as file:
+        with open(html_path, 'w') as file:
             self.matcher.write_html(file, header, footer)
 
 
-if sys.version_info.major != 3 or sys.version_info.minor < 2:
+if sys.version_info[:2] < (3, 2):
     sys.exit('Python version >= 3.2 required')
 
 if __name__ == '__main__':
     # Use relative paths for the required input/output files.
-    products_path = 'products.txt'
-    listings_path = 'listings.txt'
-    results_path = 'results.txt'
+    argument_names = [ 'products', 'listings', 'results' ]
+    file_suffix = '.txt'
+    paths = Container()
+    for name in argument_names:
+        setattr(paths, name, name + file_suffix)
     # For the HTML viewer, get the absolute path of the script's location.
     script_dir = os.path.dirname(os.path.abspath(
             inspect.getframeinfo(inspect.currentframe()).filename))
     viewer_dir = os.path.join(script_dir, 'viewer')
-    main = Main(products_path, listings_path, results_path)
-    #main.write(viewer_dir)
+    # Check command-line options.
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('-p', '--products', help='path to products (input)')
+    argparser.add_argument('-l', '--listings', help='path to listings (input)')
+    argparser.add_argument('-r', '--results', help='path to results (output)')
+    argparser.add_argument('-w', '--webviewer', help='generate web viewer',
+            action='store_true')
+    arguments = argparser.parse_args()
+    for name in argument_names:
+        value = getattr(arguments, name)
+        if value != None:
+            setattr(paths, name, value)
+    # Do the main matching procedure, then optionally generate the HTML viewer.
+    main = Main(paths.products, paths.listings, paths.results)
+    if arguments.webviewer:
+        main.write_html(viewer_dir)
 
