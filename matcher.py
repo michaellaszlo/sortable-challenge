@@ -270,7 +270,7 @@ class Matcher:
             group.children[0].children[0] += count_text
             wrapper.add(group)
         file.write(header)
-        file.write(wrapper.to_text())
+        file.write(wrapper.to_text(indent_to_depth=3))
         file.write(footer)
 
     @staticmethod
@@ -289,7 +289,7 @@ class Matcher:
 
 class HTMLNode:
 
-    indent = '  '
+    indent_unit = '  '
 
     def __init__(self, name, attributes=None, children=None):
         self.name = name
@@ -299,25 +299,33 @@ class HTMLNode:
     def add(self, node):
         self.children.append(node)
 
-    def to_text(self, depth=0):
+    def to_text(self, depth=0, indent_to_depth=0):
         parts = []
         # Opening tag.
-        parts.extend(depth * [ self.indent ])
+        if depth < indent_to_depth:
+            parts.extend(depth * [ self.indent_unit ])
         parts.extend([ '<', self.name ])
         for key, value in self.attributes.items():
             parts.extend([ ' ', key, '="', value, '"' ])
-        parts.append('>\n')
+        parts.append('>')
+        if depth < indent_to_depth:
+            parts.append('\n')
         # Children.
         for child in self.children:
             if type(child) == HTMLNode:
-                parts.append(child.to_text(depth + 1))
+                parts.append(child.to_text(depth + 1, indent_to_depth))
             else:
-                parts.extend((depth + 1) * [ self.indent ])
+                if depth < indent_to_depth:
+                    parts.extend((depth + 1) * [ self.indent_unit ])
                 parts.append(str(child))
-                parts.append('\n')
+                if depth < indent_to_depth:
+                    parts.append('\n')
         # Closing tag.
-        parts.extend(depth * [ self.indent ])
-        parts.extend([ '</', self.name, '>\n' ])
+        if depth < indent_to_depth:
+            parts.extend(depth * [ self.indent_unit ])
+        parts.extend([ '</', self.name, '>' ])
+        if depth < indent_to_depth:
+            parts.append('\n')
         # Done.
         return ''.join(parts)
 
@@ -518,7 +526,7 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings.txt'
+    listings_name = 'listings_a.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
