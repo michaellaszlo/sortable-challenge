@@ -137,6 +137,9 @@ body {
 .value, .match {
   font-family: 'Roboto Mono', monospace;
 }
+.id .value {
+  font-family: 'Roboto', sans-serif;
+}
 .title .value {
   line-height: 22px;
 }

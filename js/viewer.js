@@ -104,7 +104,8 @@ var Viewer = (function () {
             if (!(field in product)) {
               return;
             }
-            pair = M.make('div', { className: 'pair', parent: productBox });
+            pair = M.make('div', { className: 'pair ' + field,
+                parent: productBox });
             if (field == 'id') {
               M.make('span', { className: 'key', parent: pair,
                   innerHTML: 'product' });

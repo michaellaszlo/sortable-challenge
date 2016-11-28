@@ -234,13 +234,15 @@ class Matcher:
 
     def write_html(self, file, header, footer):
         """Generate a static HTML file displaying listings with candidates."""
+        # Make nodes to contain listings grouped by candidate count.
         multiple_unresolved = self.make_group_node('Unresolved multiple', 's')
         multiple_resolved = self.make_group_node('Resolved multiple', 's')
         one = self.make_group_node('Single')
         zero = self.make_group_node('No')
-        for listing in self.listings:
+        for listing in sorted(self.listings, key=lambda x: x.id):
             count = len(listing.candidates)
             best_candidate = listing.best_candidate
+            # Select the appropriate group for this listing.
             if count == 0:
                 group = zero
             elif count == 1:
@@ -249,19 +251,32 @@ class Matcher:
                 group = multiple_resolved
             else:
                 group = multiple_unresolved
+            # Make a node to contain the listing and its candidate products.
             container = HTMLNode('div', { 'class': 'listingContainer' })
             group.add(container)
+            # Make a node for the listing itself.
             listing_node = HTMLNode('div', { 'class': 'listing' },
                     [ self.make_pair_node('listing', listing.id, 'id') ])
             container.add(listing_node)
-            for product in listing.candidates:
+            # Store product tokens for later use in highlighting the listing.
+            token_maps = Container({ 'manufacturer': {}, 'title': {} })
+            for product in sorted(listing.candidates, key=lambda x: x.id):
+                # Make a node for the product.
                 class_text = 'product'
                 if product == best_candidate:
                     class_text += ' selected'
                 group_node = HTMLNode('div', { 'class': class_text },
                         [ self.make_pair_node('product', product.id, 'id') ])
                 container.add(group_node)
+                # Add the product fields.
+                for name in [ 'manufacturer', 'family', 'model' ]:
+                    # There may be no family.
+                    if not hasattr(product, name):
+                        continue
+                    value = getattr(product, name)
+                    group_node.add(self.make_pair_node(name, value, name))
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
+        # Alter each group header to show the number of listings it contains.
         total_count = len(self.listings)
         for group in [ multiple_unresolved, multiple_resolved, one, zero ]:
             count = len(group.children) - 1
