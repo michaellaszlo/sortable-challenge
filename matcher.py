@@ -275,6 +275,7 @@ class Matcher:
                         continue
                     text = getattr(product, name)
                     text_lower = text.lower()
+                    # Highlight text fragments and save for later use.
                     if name == 'manufacturer':
                         highlight_map = highlight_maps.manufacturer
                     else:
@@ -285,6 +286,13 @@ class Matcher:
                         text = text[:a] + ''.join([ '<span class="match ',
                                 name, '">', text[a:b], '</span>', text[b:] ])
                     group_node.add(self.make_pair_node(name, text, name))
+            # Turn listing fields into nodes.
+            for name in [ 'manufacturer', 'title' ]:
+                highlight_map = getattr(highlight_maps, name)
+                listing_node.add(self.make_pair_node(name,
+                        getattr(listing, name), name))
+                if name == 'manufacturer':
+                    listing_node.add('<br>')
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
         # Alter each group header to show the number of listings it contains.
         total_count = len(self.listings)
@@ -551,7 +559,7 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings.txt'
+    listings_name = 'listings_a.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
