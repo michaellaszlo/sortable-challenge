@@ -258,8 +258,8 @@ class Matcher:
             listing_node = HTMLNode('div', { 'class': 'listing' },
                     [ self.make_pair_node('listing', listing.id, 'id') ])
             container.add(listing_node)
-            # Store product tokens for later use in highlighting the listing.
-            token_maps = Container({ 'manufacturer': {}, 'title': {} })
+            # Store text fragments for later use in highlighting the listing.
+            highlight_maps = Container({ 'manufacturer': {}, 'title': {} })
             for product in sorted(listing.candidates, key=lambda x: x.id):
                 # Make a node for the product.
                 class_text = 'product'
@@ -273,8 +273,18 @@ class Matcher:
                     # There may be no family.
                     if not hasattr(product, name):
                         continue
-                    value = getattr(product, name)
-                    group_node.add(self.make_pair_node(name, value, name))
+                    text = getattr(product, name)
+                    text_lower = text.lower()
+                    if name == 'manufacturer':
+                        highlight_map = highlight_maps.manufacturer
+                    else:
+                        highlight_map = highlight_maps.title
+                    for token in reversed(getattr(product.tokens, name)):
+                        a, b = token.span
+                        highlight_map[text_lower[a:b]] = name
+                        text = text[:a] + ''.join([ '<span class="match ',
+                                name, '">', text[a:b], '</span>', text[b:] ])
+                    group_node.add(self.make_pair_node(name, text, name))
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
         # Alter each group header to show the number of listings it contains.
         total_count = len(self.listings)
@@ -541,7 +551,7 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings_a.txt'
+    listings_name = 'listings.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
