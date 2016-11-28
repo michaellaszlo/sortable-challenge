@@ -249,28 +249,48 @@ class Matcher:
                 group = multiple_resolved
             else:
                 group = multiple_unresolved
+            container = HTMLNode('div', { 'class': 'listingContainer' })
+            group.add(container)
+            listing_node = HTMLNode('div', { 'class': 'listing' },
+                    [ self.make_pair_node('listing', listing.id, 'id') ])
+            container.add(listing_node)
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
+        total_count = len(self.listings)
         for group in [ multiple_unresolved, multiple_resolved, one, zero ]:
-            wrapper.children.append(group)
+            count = len(group.children) - 1
+            count_text = ': %d listing%s (%.1f%%)' % (count,
+                    '' if count == 1 else 's', 100.0 * count / total_count)
+            group.children[0].children[0] += count_text
+            wrapper.add(group)
         file.write(header)
         file.write(wrapper.to_text())
         file.write(footer)
 
     @staticmethod
     def make_group_node(header_text, plural=''):
-        return HTMLNode('div', { 'className': 'group' },
-                [ HTMLNode('h2', { 'className': 'header' },
+        return HTMLNode('div', { 'class': 'group' },
+                [ HTMLNode('h2', { 'class': 'header' },
                         [ header_text + ' candidate' + plural ]) ])
+
+    @staticmethod
+    def make_pair_node(key, value, class_extra=None):
+        class_name = 'pair' if class_extra == None else 'pair %s' % class_extra
+        return HTMLNode('div', { 'class': class_name },
+                [ HTMLNode('span', { 'class': 'key' }, [ key ]),
+                  HTMLNode('span', { 'class': 'value' }, [ value ]) ])
 
 
 class HTMLNode:
 
     indent = '  '
 
-    def __init__(self, name, attributes={}, children=[]):
+    def __init__(self, name, attributes=None, children=None):
         self.name = name
-        self.attributes = attributes
-        self.children = children
+        self.attributes = attributes or {}
+        self.children = children or []
+
+    def add(self, node):
+        self.children.append(node)
 
     def to_text(self, depth=0):
         parts = []
