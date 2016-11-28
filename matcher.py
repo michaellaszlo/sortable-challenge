@@ -1,3 +1,5 @@
+"""A solution to the Sortable coding challenge."""
+
 import json
 import os.path
 import random
@@ -88,7 +90,7 @@ class Matcher:
                 if len(try_listings) < len(listings):
                     listings = try_listings
         for listing in listings:
-            if self.is_candidate_match(listing, product):
+            if self.may_match(listing, product):
                 listing.candidates.append(product)
 
     def match_all_listings(self):
@@ -104,7 +106,7 @@ class Matcher:
         """Find products that may match the given listing."""
         listing.candidates = []
         for product in self.products:
-            if self.is_candidate_match(listing, product):
+            if self.may_match(listing, product):
                 listing.candidates.append(product)
 
     @staticmethod
@@ -186,6 +188,20 @@ class Matcher:
         for count, frequency in sorted(counts.items()):
             proportion = 100.0 * frequency / len(self.listings)
             print('%3d: %d %.1f%%' % (count, frequency, proportion))
+
+    def write_results(self, file):
+        """Write out final matches in the format specified for the challenge."""
+        result_map = {}
+        for listing in self.listings:
+            product = listing.best_candidate
+            if product == None:
+                continue
+            result_map.setdefault(product.product_name, []).append(listing)
+        file.write('\n'.join(json.dumps(
+                { 'product_name': product_name,
+                  'listings': [ listing.result_data for listing in listings ] },
+                ensure_ascii=False) for product_name, listings in
+                sorted(result_map.items())) + '\n')
     
     def write_js(self, file):
         """Convert products and listings into dictionaries. Write a JS file."""
@@ -218,20 +234,6 @@ class Matcher:
         file.write('var listings = %s;\n' % (json.dumps(listing_items,
                 ensure_ascii=False)))
 
-    def write_results(self, file):
-        """Write out final matches in the format specified for the challenge."""
-        result_map = {}
-        for listing in self.listings:
-            product = listing.best_candidate
-            if product == None:
-                continue
-            result_map.setdefault(product.product_name, []).append(listing)
-        file.write('\n'.join(json.dumps(
-                { 'product_name': product_name,
-                  'listings': [ listing.data for listing in listings ] },
-                ensure_ascii=False) for product_name, listings in
-                sorted(result_map.items())) + '\n')
-
     def write_html(self, file, header, footer):
         """Generate a static HTML file displaying listings with candidates."""
         # Make nodes to contain listings grouped by candidate count.
@@ -240,14 +242,13 @@ class Matcher:
         one = self.make_group_node('Single')
         zero = self.make_group_node('No')
         for listing in sorted(self.listings, key=lambda x: x.id):
-            count = len(listing.candidates)
-            best_candidate = listing.best_candidate
             # Select the appropriate group for this listing.
+            count = len(listing.candidates)
             if count == 0:
                 group = zero
             elif count == 1:
                 group = one
-            elif best_candidate != None:
+            elif listing.best_candidate != None:
                 group = multiple_resolved
             else:
                 group = multiple_unresolved
@@ -263,7 +264,7 @@ class Matcher:
             for product in sorted(listing.candidates, key=lambda x: x.id):
                 # Make a node for the product.
                 class_text = 'product'
-                if product == best_candidate:
+                if product == listing.best_candidate:
                     class_text += ' selected'
                 group_node = HTMLNode('div', { 'class': class_text },
                         [ self.make_pair_node('product', product.id, 'id') ])
@@ -377,7 +378,7 @@ class HTMLNode:
 class LooseMatcher(Matcher):
 
     @staticmethod
-    def is_candidate_match(listing, product):
+    def may_match(listing, product):
         """Decide whether a listing is potentially matched by a product."""
         # If a listing's manufacturer and title tokens include a product's
         #  manufacturer and model tokens, respectively, as sublists, we
@@ -419,11 +420,11 @@ class LooseMatcher(Matcher):
 class TightMatcher(Matcher):
 
     @staticmethod
-    def is_candidate_match(listing, product):
+    def may_match(listing, product):
         """Decide whether a listing is potentially matched by a product."""
         # If the product has a family value, we require that it be present
         #  in the listing and that it occur immediately before or after the
-        #  model value. The other criteria are the same as in loose matching.
+        #  model value. The other criteria are the same as for loose matching.
         title_tokens = listing.tokens.title
         model_tokens = product.tokens.model
         model_starts = Matcher.find_all(title_tokens, model_tokens)
@@ -470,22 +471,33 @@ class TightMatcher(Matcher):
         return 0
 
 
-class Product:
+class Container:
+
+    def __init__(self, data=None):
+        if data:
+            for name, value in data.items():
+                setattr(self, name, value)
+
+
+class Product(Container):
 
     def __init__(self, data):
-        set_data(self, data)
-        tokenize_attributes(self, 'manufacturer', 'family', 'model')
+        super().__init__(data)
+        Parser.tokenize_attributes(self, 'manufacturer', 'family', 'model')
 
     def __str__(self):
         family = self.family if hasattr(self, 'family') else '-'
         return ' '.join([ self.id, self.manufacturer, family, self.model ])
 
 
-class Listing:
+class Listing(Container):
 
     def __init__(self, data):
-        set_data(self, data)
-        tokenize_attributes(self, 'manufacturer', 'title')
+        super().__init__(data)
+        Parser.tokenize_attributes(self, 'manufacturer', 'title')
+        # Save a copy of the data for printing in challenge format.
+        self.result_data = data.copy()
+        del self.result_data['id']
 
     def __str__(self):
         return ' '.join([ self.id, self.manufacturer, self.title ])
@@ -495,95 +507,105 @@ class Token:
 
     def __init__(self, text, start):
         self.text, self.start = text, start
-        self.span = [ start, start + len(text) ]
+        self.span = ( start, start + len(text) )
 
 
-class Container:
+class Parser:
 
-    def __init__(self, data={}):
-        for name, value in data.items():
-            setattr(self, name, value)
+    letter_set = set(list(string.ascii_lowercase))
+    digit_set = set(list(string.digits))
 
+    @staticmethod
+    def tokenize_attributes(item, *names):
+        """Given an object and one or more attribute names, make token lists
+        from the named attributes and assign them to a new .tokens attribute.
+        """ 
+        item.tokens = Container()
+        for name in names:
+            if hasattr(item, name):
+                tokens = Parser.text_to_tokens(getattr(item, name))
+                setattr(item.tokens, name, tokens)
 
-def set_data(item, data, copy_id=False):
-    """Set item attributes using values from a data dictionary."""
-    for key, value in data.items():
-        setattr(item, key, value)
-    # Save a copy of the data for later use in logging and reporting.
-    item.data = data.copy()
-    if not copy_id:
-        del item.data['id']
+    @staticmethod
+    def text_to_tokens(text):
+        """Parse text into an ordered list of lowercase tokens."""
+        tokens = []
+        text = text.lower()
+        pos = 0
+        while pos < len(text):
+            ch = text[pos]
+            made_token = False
+            for char_set in [ Parser.letter_set, Parser.digit_set ]:
+                if ch in char_set:
+                    pos, token = Parser.parse_token(char_set, text, pos)
+                    tokens.append(token)
+                    made_token = True
+                    break
+            if not made_token:
+                pos += 1
+        return tokens
 
-def tokenize_attributes(item, *names):
-    """Convert the named attributes into lists of canonical tokens.""" 
-    item.tokens = Container()
-    for name in names:
-        if hasattr(item, name):
-            tokens = text_to_tokens(getattr(item, name))
-            setattr(item.tokens, name, tokens)
-
-letter_set = set(list(string.ascii_lowercase))
-digit_set = set(list(string.digits))
-
-def text_to_tokens(text):
-    """Parse text into canonical tokens."""
-    tokens = []
-    text = text.lower()
-    pos = 0
-    while pos < len(text):
-        ch = text[pos]
-        made_token = False
-        for char_set in [ letter_set, digit_set ]:
-            if ch in char_set:
-                pos, token = parse_token(char_set, text, pos)
-                tokens.append(token)
-                made_token = True
+    @staticmethod
+    def parse_token(char_set, text, pos):
+        """Extract a sequence of characters belonging to a character set."""
+        chars = []
+        start = pos
+        while True:
+            if pos == len(text) or text[pos] not in char_set:
                 break
-        if not made_token:
+            chars.append(text[pos])
             pos += 1
-    return tokens
+        token = Token(''.join(chars), start)
+        return pos, token
 
-def parse_token(char_set, text, pos):
-    """Extract a sequence of characters belonging to a character set."""
-    chars = []
-    start = pos
-    while True:
-        if pos == len(text) or text[pos] not in char_set:
-            break
-        chars.append(text[pos])
-        pos += 1
-    token = Token(''.join(chars), start)
-    return pos, token
 
-def load_items(Item, file_path):
-    """Make a list of Item objects from a file of JSON lines."""
-    items = []
-    with open(file_path) as file:
-        for line_index, line in enumerate(file.readlines()):
-            data = json.loads(line)
-            # Allow for predefined IDs. Use the line number by default.
-            if 'id' not in data:
-                data['id'] = line_index + 1
-            items.append(Item(data))
-    return items
+class Main:
 
-def main():
-    data_dir = 'data/dev'
-    products_name = 'products.txt'
-    listings_name = 'listings.txt'
-    products = load_items(Product, os.path.join(data_dir, products_name))
-    listings = load_items(Listing, os.path.join(data_dir, listings_name))
-    matcher = TightMatcher(products, listings)
-    fragment_dir = 'fragments'
-    header = open(os.path.join(fragment_dir, 'header.html')).read()
-    footer = open(os.path.join(fragment_dir, 'footer.html')).read()
-    #with open('view_listings.html', 'w') as file:
-    #    matcher.write_html(file, header, footer)
-    with open('results.txt', 'w') as file:
-        matcher.write_results(file)
+    def __init__(self):
+        self.make_matcher()
+        self.write_results()
+        self.write_html()
+
+    def make_matcher(self):
+        data_dir = 'data/dev'
+        products_name = 'products.txt'
+        listings_name = 'listings.txt'
+        products = self.load(Product, os.path.join(data_dir, products_name))
+        listings = self.load(Listing, os.path.join(data_dir, listings_name))
+        self.matcher = TightMatcher(products, listings)
+
+    @staticmethod
+    def load(Item, file_path):
+        """Make a list of Item objects from a file of JSON lines."""
+        items = []
+        with open(file_path) as file:
+            for line_index, line in enumerate(file.readlines()):
+                data = json.loads(line)
+                # Allow for predefined IDs. Use the line number by default.
+                if 'id' not in data:
+                    data['id'] = line_index + 1
+                items.append(Item(data))
+        return items
+
+    def write_results(self):
+        with open('results.txt', 'w') as file:
+            self.matcher.write_results(file)
+
+    def write_js(self):
+        with open('viewer/js/data.js', 'w') as file:
+            self.matcher.write_js(file)
+
+    def write_html(self):
+        fragment_dir = 'viewer/fragments'
+        header = open(os.path.join(fragment_dir, 'header.html')).read()
+        footer = open(os.path.join(fragment_dir, 'footer.html')).read()
+        with open('viewer/dynamic_listings.html', 'w') as file:
+            self.matcher.write_html(file, header, footer)
+
 
 if sys.version_info.major < 3:
     sys.exit('Python 3 required')
+
 if __name__ == '__main__':
-    main()
+    Main()
 
