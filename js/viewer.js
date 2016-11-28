@@ -50,7 +50,8 @@ var Viewer = (function () {
           groupBox = M.make('div', { className: 'group', parent: wrapper }),
           info = groupInfo[name],
           headerText = info.headerText = info.numberText +
-              ' candidate' + info.plural + ': ' + size + ' listings (' +
+              ' candidate' + info.plural + ': ' + size +
+              ' listing' + (size == 1 ? '' : 's') + ' (' +
               format(100 * size / listings.length, 1) + '%)',
           header = M.make('h2', { className: 'header', parent: groupBox,
               innerHTML: headerText });

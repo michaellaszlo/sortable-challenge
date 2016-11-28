@@ -254,6 +254,13 @@ class Matcher:
             listing_node = HTMLNode('div', { 'class': 'listing' },
                     [ self.make_pair_node('listing', listing.id, 'id') ])
             container.add(listing_node)
+            for product in listing.candidates:
+                class_text = 'product'
+                if product == best_candidate:
+                    class_text += ' selected'
+                group_node = HTMLNode('div', { 'class': class_text },
+                        [ self.make_pair_node('product', product.id, 'id') ])
+                container.add(group_node)
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
         total_count = len(self.listings)
         for group in [ multiple_unresolved, multiple_resolved, one, zero ]:
@@ -511,7 +518,7 @@ def load_items(Item, file_path):
 def main():
     data_dir = 'data/dev'
     products_name = 'products.txt'
-    listings_name = 'listings_a.txt'
+    listings_name = 'listings.txt'
     products = load_items(Product, os.path.join(data_dir, products_name))
     listings = load_items(Listing, os.path.join(data_dir, listings_name))
     matcher = TightMatcher(products, listings)
