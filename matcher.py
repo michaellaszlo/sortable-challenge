@@ -239,6 +239,11 @@ class Matcher:
 
     def write_html(self, file, header, footer):
         """Generate a static HTML file displaying listings with candidates."""
+        # Make a wrapper for everything.
+        wrapper = HTMLNode('div', { 'id': 'wrapper' })
+        # Add a spinner to bide the time while the listings load.
+        spinner = HTMLNode('div', { 'id': 'spinner' })
+        wrapper.add(spinner)
         # Make nodes to contain listings grouped by candidate count.
         multiple_unresolved = self.make_group_node('Unresolved multiple', 's')
         multiple_resolved = self.make_group_node('Resolved multiple', 's')
@@ -303,7 +308,6 @@ class Matcher:
                 if name == 'title':
                     listing_node.add('<br>')
                 listing_node.add(self.make_pair_node(name, text, name))
-        wrapper = HTMLNode('div', { 'id': 'wrapper' })
         # Alter each group header to show the number of listings it contains.
         total_count = len(self.listings)
         for group in [ multiple_unresolved, multiple_resolved, one, zero ]:
