@@ -32,13 +32,13 @@ You can specify different file paths with command-line options:
 - `-l`, `--listings`: path to listings (input)
 - `-r`, `--results`: path to results (output)
 
-The options can be used in any combination.
+The options can be used in any combination and any order.
 
 For example, to match a different set of listings:
 
     python3 matcher.py -l other_listings.txt
 
-And writing the results to a different output file:
+Writing the results to a different output file:
 
     python3 matcher.py -l more_listings.txt -r more_results.txt
 
@@ -53,16 +53,16 @@ To get a summary of the command-line options, use the `-h` option:
 
 ## Viewer option
 
-You may be interested in the web-based listing viewer that I used during
-development to help me visually inspect the candidate matches produced
-by various strategies.
+You may be interested in the web-based listing viewer that I made to
+help me visually inspect the candidate matches produced by various
+matching rules.
 
 The `-w` or `--webviewer` option makes `matcher.py` write an HTML file to
 `viewer/listings.html` in the directory that contains `matcher.py`. Unlike
-the file paths described above, the HTML file's path is independent of
-your current working directory. You cannot specify a different path. To
-work correctly, the HTML file requires the `viewer/` directory supplied
-with the repository.
+the other file paths, the HTML file's path is independent of your
+current working directory. You cannot specify a different path. To work
+correctly, the HTML file requires the `viewer/` directory supplied with
+the repository.
 
 The `-w` option takes no argument. It can be used in conjunction with
 the other path options.
@@ -87,7 +87,7 @@ take several seconds to load.
 
 The listings are grouped by number of candidates and resolution
 status. You can jump to the start of each group using the menu in the
-top left corner:
+upper left corner:
 
 ![Sortable challenge listing viewer menu](viewer/i/menu_screenshot.png)
 

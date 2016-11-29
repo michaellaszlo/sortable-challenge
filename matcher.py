@@ -28,6 +28,7 @@ class Matcher:
         #  the listing tokens act as a document to which we apply the query.
         #  Thus, it is the listings -- the documents, as it were -- that must
         #  be indexed.
+        print('matching products')
         self.remove_duplicate_products()
         self.index_all_listings()
         for listing in self.listings:
@@ -96,7 +97,7 @@ class Matcher:
                 listing.candidates.append(product)
 
     def match_all_listings(self):
-        """Iterate over listings first to match them with products."""
+        """Iterate over listings first and match them with products."""
         # This produces the same results as iterating over products first, but
         #  it is slower because we can't take advantage of token indexing to
         #  quickly shrink the set of products. It is useful for verifying
@@ -569,6 +570,7 @@ class Main:
         self.write_results(results_path)
 
     def load_data(self, products_path, listings_path):
+        print('loading data')
         self.products = self.load(Product, products_path)
         self.listings = self.load(Listing, listings_path)
 
@@ -589,11 +591,13 @@ class Main:
         return items
 
     def write_results(self, results_path):
+        print('writing %s' % results_path)
         with open(results_path, 'w') as file:
             self.matcher.write_results(file)
 
     def write_js(self, viewer_dir):
         js_path = os.path.join(viewer_dir, 'js/data.js')
+        print('writing %s' % js_path)
         with open(js_path, 'w') as file:
             self.matcher.write_js(file)
 
@@ -602,20 +606,22 @@ class Main:
         header = open(os.path.join(fragment_dir, 'header.html')).read()
         footer = open(os.path.join(fragment_dir, 'footer.html')).read()
         html_path = os.path.join(viewer_dir, 'listings.html')
+        print('writing %s' % html_path)
         with open(html_path, 'w') as file:
             self.matcher.write_html(file, header, footer)
 
-
-if sys.version_info[:2] < (3, 2):
-    sys.exit('Python version >= 3.2 required')
+# Check Python version.
+major, minor = 3, 2
+if sys.version_info[:2] < (major, minor):
+    sys.exit('Python version >= %d.%d required' (major, minor))
 
 if __name__ == '__main__':
     # Use relative paths for the required input/output files.
-    argument_names = [ 'products', 'listings', 'results' ]
-    file_suffix = '.txt'
+    names = [ 'products', 'listings', 'results' ]
+    suffix = '.txt'
     paths = Container()
-    for name in argument_names:
-        setattr(paths, name, name + file_suffix)
+    for name in names:
+        setattr(paths, name, name + suffix)
     # For the HTML viewer, get the absolute path of the script's location.
     script_dir = os.path.dirname(os.path.abspath(
             inspect.getframeinfo(inspect.currentframe()).filename))
@@ -628,12 +634,16 @@ if __name__ == '__main__':
     argparser.add_argument('-w', '--webviewer', help='generate web viewer',
             action='store_true')
     arguments = argparser.parse_args()
-    for name in argument_names:
+    for name in names:
         value = getattr(arguments, name)
         if value != None:
             setattr(paths, name, value)
-    # Do the main matching procedure, then optionally generate the HTML viewer.
-    main = Main(paths.products, paths.listings, paths.results)
-    if arguments.webviewer:
-        main.write_html(viewer_dir)
+    # Perform matching, then optionally generate the HTML viewer.
+    try:
+        main = Main(paths.products, paths.listings, paths.results)
+        if arguments.webviewer:
+            main.write_html(viewer_dir)
+    except (FileNotFoundError, PermissionError):
+        error = sys.exc_info()[1]
+        print('%s: %s' % (type(error).__name__, error))
 
