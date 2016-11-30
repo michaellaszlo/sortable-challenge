@@ -22,7 +22,8 @@ Or with PyPy 3:
 
 The `matcher.py` script reads input data from a pair of files named
 `products.txt` and `listings.txt` in your current working directory. It
-writes to a file named `results.txt` in your current working directory.
+writes the results to a file named `results.txt` in your current working
+directory.
 
 
 ## Path options
@@ -87,5 +88,7 @@ The listings are grouped by number of candidates and resolution
 status. You can jump to the start of each group using the menu in the
 upper left corner:
 
-![Sortable challenge listing viewer menu](viewer/i/menu_screenshot.png)
+![Navigation menu button](viewer/i/menu.button.png)
+
+![Navigation menu opened](viewer/i/menu.opened.png)
 
