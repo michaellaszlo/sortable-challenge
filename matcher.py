@@ -11,8 +11,13 @@ import sys
 
 
 class Matcher:
+    """Implements the general matching process. Supports output generation in
+    JSON, JavaScript, and HTML. Specific matching rules must be implemented by
+    a subclass that defines may_match() and compare_details().
+    """
 
     def __init__(self, products, listings):
+        """Run the matching process."""
         self.products, self.listings = products, listings
         self.match_all_products()
         self.disambiguate_matches()
@@ -127,7 +132,7 @@ class Matcher:
 
     @staticmethod
     def find_all(tokens, sublist):
-        """Search a token list for a sublist. Return a list of start indices."""
+        """Search for a sublist of tokens. Return a list of start indices."""
         result = []
         for start in range(0, len(tokens) - len(sublist) + 1):
             okay = True
@@ -140,7 +145,7 @@ class Matcher:
         return result
 
     def disambiguate_matches(self):
-        """Try to resolve cases where a listing has several match candidates."""
+        """Try to resolve cases of listings with several match candidates."""
         for listing in self.listings:
             candidates = listing.candidates
             # If there are many candidates, assume that the listing does not
@@ -151,12 +156,13 @@ class Matcher:
                 listing.best_candidate = candidates[0]
                 continue
             self.detail_sort(listing, candidates)
-            if self.compare_details(listing, candidates[0], candidates[1]) == 0:
+            if self.compare_details(listing,
+                    candidates[0], candidates[1]) == 0:
                 continue
             listing.best_candidate = candidates[0]
 
     def detail_sort(self, listing, products, start=0, length=None):
-        """Sort products in place, using compare_details() for product pairs."""
+        """Sort products in place, using compare_details() on product pairs."""
         a = products
         if length == None:
             length = len(a)
@@ -193,7 +199,7 @@ class Matcher:
             print('%3d: %d %.1f%%' % (count, frequency, proportion))
 
     def write_results(self, file):
-        """Write out final matches in the format specified for the challenge."""
+        """Write out final matches in the required challenge format."""
         result_map = {}
         for listing in self.listings:
             product = listing.best_candidate
@@ -202,12 +208,15 @@ class Matcher:
             result_map.setdefault(product.product_name, []).append(listing)
         file.write('\n'.join(json.dumps(
                 { 'product_name': product_name,
-                  'listings': [ listing.result_data for listing in listings ] },
+                  'listings': [ listing.result_data for listing in listings] },
                 ensure_ascii=False) for product_name, listings in
                 sorted(result_map.items())) + '\n')
     
-    def write_js(self, file):
-        """Convert products and listings into dictionaries. Write a JS file."""
+    def write_data_js(self, file):
+        """Convert products and listings into dictionaries. Write them to a
+        JavaScript file that can be used to dynamically build a web page
+        that displays listings with candidates.
+        """
         product_items = len(self.products) * [ None ]
         for i, product in enumerate(self.products):
             item = product_items[i] = { 'id': product.id }
@@ -237,7 +246,7 @@ class Matcher:
         file.write('var listings = %s;\n' % (json.dumps(listing_items,
                 ensure_ascii=False)))
 
-    def write_html(self, file, header, footer):
+    def write_viewer_html(self, file, header, footer):
         """Generate a static HTML file displaying listings with candidates."""
         # Make a wrapper for everything.
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
@@ -322,12 +331,14 @@ class Matcher:
 
     @staticmethod
     def make_group_node(header_text, plural=''):
+        """Represent a group of listings in HTML."""
         return HTMLNode('div', { 'class': 'group' },
                 [ HTMLNode('h2', { 'class': 'header' },
                         [ header_text + ' candidate' + plural ]) ])
 
     @staticmethod
     def make_pair_node(key, value, class_extra=None):
+        """Represent a key-value pair in HTML."""
         class_name = 'pair' if class_extra == None else 'pair %s' % class_extra
         return HTMLNode('div', { 'class': class_name },
                 [ HTMLNode('span', { 'class': 'key' }, [ key ]),
@@ -335,27 +346,40 @@ class Matcher:
 
     @staticmethod
     def insert_highlighting(text, a, b, field_name):
+        """Insert span tags that will activate highlight styling."""
         return ''.join([ text[:a], '<span class="match ',
                 field_name, '">', text[a:b], '</span>', text[b:] ])
 
 
 class HTMLNode:
+    """A simple representation of an HTML element containing just enough
+    information to print out static HTML.
+    """
 
-    indent_unit = '  '
+    one_indent = '  '  # The unit of indentation.
 
     def __init__(self, name, attributes=None, children=None):
+        """Make a specified type of HTML element. Optionally set its
+        dictionary of attribute strings and list of child elements.
+        """
         self.name = name
         self.attributes = attributes or {}
         self.children = children or []
 
     def add(self, node):
+        """Add a given HTML node as a child of this one."""
         self.children.append(node)
 
     def to_text(self, depth=0, indent_to_depth=0):
+        """Recursively generate a text representation of this HTML node.
+        Indentation is done to the maximum depth specified by the optional
+        argument indent_to_depth. Upon reaching this depth, indentation ceases.
+        If indent_to_depth is omitted, there is no indentation at all.
+        """
         parts = []
         # Opening tag.
         if depth < indent_to_depth:
-            parts.extend(depth * [ self.indent_unit ])
+            parts.extend(depth * [ self.one_indent ])
         parts.extend([ '<', self.name ])
         for key, value in self.attributes.items():
             parts.extend([ ' ', key, '="', value, '"' ])
@@ -368,13 +392,13 @@ class HTMLNode:
                 parts.append(child.to_text(depth + 1, indent_to_depth))
             else:
                 if depth < indent_to_depth:
-                    parts.extend((depth + 1) * [ self.indent_unit ])
+                    parts.extend((depth + 1) * [ self.one_indent ])
                 parts.append(str(child))
                 if depth < indent_to_depth:
                     parts.append('\n')
         # Closing tag.
         if depth < indent_to_depth:
-            parts.extend(depth * [ self.indent_unit ])
+            parts.extend(depth * [ self.one_indent ])
         parts.extend([ '</', self.name, '>' ])
         if depth < indent_to_depth:
             parts.append('\n')
@@ -383,6 +407,7 @@ class HTMLNode:
 
 
 class LooseMatcher(Matcher):
+    """Implements matching rules that prefer recall to precision."""
 
     @staticmethod
     def may_match(listing, product):
@@ -399,10 +424,10 @@ class LooseMatcher(Matcher):
     def compare_details(listing, a, b):
         """Decide whether one product is a closer match than another."""
         # Does one product have a family match whereas the other does not?
-        a_family_match = hasattr(a.tokens, 'family') and \
-                Matcher.find(listing.tokens.title, a.tokens.family) >= 0
-        b_family_match = hasattr(b.tokens, 'family') and \
-                Matcher.find(listing.tokens.title, b.tokens.family) >= 0
+        a_family_match = (hasattr(a.tokens, 'family') and
+                Matcher.find(listing.tokens.title, a.tokens.family) >= 0)
+        b_family_match = (hasattr(b.tokens, 'family') and
+                Matcher.find(listing.tokens.title, b.tokens.family) >= 0)
         if a_family_match and not b_family_match:
             return -1
         if not a_family_match and b_family_match:
@@ -425,6 +450,7 @@ class LooseMatcher(Matcher):
 
 
 class TightMatcher(Matcher):
+    """Implements matching rules that prefer precision to recall."""
 
     @staticmethod
     def may_match(listing, product):
@@ -449,8 +475,8 @@ class TightMatcher(Matcher):
             num_family_tokens = len(family_tokens)
             num_model_tokens = len(model_tokens)
             for family_start in family_starts:
-                if family_start + num_family_tokens in model_start_set or \
-                   family_start - num_model_tokens in model_start_set:
+                if (family_start + num_family_tokens in model_start_set or
+                        family_start - num_model_tokens in model_start_set):
                     found = True
                     break
             if not found:
@@ -462,10 +488,10 @@ class TightMatcher(Matcher):
     def compare_details(listing, a, b):
         """Decide whether one product is a closer match than another."""
         # Does one have a family match whereas the other does not?
-        a_family_match = hasattr(a.tokens, 'family') and \
-                Matcher.find(listing.tokens.title, a.tokens.family) >= 0
-        b_family_match = hasattr(b.tokens, 'family') and \
-                Matcher.find(listing.tokens.title, b.tokens.family) >= 0
+        a_family_match = (hasattr(a.tokens, 'family') and
+                Matcher.find(listing.tokens.title, a.tokens.family) >= 0)
+        b_family_match = (hasattr(b.tokens, 'family') and
+                Matcher.find(listing.tokens.title, b.tokens.family) >= 0)
         if a_family_match and not b_family_match:
             return -1
         if not a_family_match and b_family_match:
@@ -479,45 +505,56 @@ class TightMatcher(Matcher):
 
 
 class Container:
+    """A bag of unspecified attributes. Convenient for grouping data."""
 
     def __init__(self, data=None):
+        """Given a dictionary, use keys and values to initialize attributes."""
         if data:
             for name, value in data.items():
                 setattr(self, name, value)
 
 
 class Product(Container):
+    """Contains a product's raw data and tokens for use in matching."""
 
     def __init__(self, data):
+        """Store attributes and tokenize those used in matching."""
         super().__init__(data)
         Parser.tokenize_attributes(self, 'manufacturer', 'family', 'model')
 
     def __str__(self):
+        """Make a concise string representation for debugging."""
         family = self.family if hasattr(self, 'family') else '-'
         return ' '.join([ self.id, self.manufacturer, family, self.model ])
 
 
 class Listing(Container):
+    """Contains a listing's raw data and tokens for use in matching."""
 
     def __init__(self, data):
+        """Store attributes and tokenize those used in matching."""
         super().__init__(data)
         Parser.tokenize_attributes(self, 'manufacturer', 'title')
         # Save a copy of the data for printing in challenge format.
         self.result_data = data.copy()
-        del self.result_data['id']
+        del self.result_data['id']  # The Sortable validator rejects our ID.
 
     def __str__(self):
+        """Make a concise string representation for debugging."""
         return ' '.join([ self.id, self.manufacturer, self.title ])
 
 
 class Token:
+    """Contains a token string and the position where it was found."""
 
     def __init__(self, text, start):
+        """Make a convenient tuple of the token's start and end indices."""
         self.text, self.start = text, start
-        self.span = ( start, start + len(text) )
+        self.span = (start, start + len(text))
 
 
 class Parser:
+    """Provides static methods for turning text into tokens."""
 
     letter_set = set(list(string.ascii_lowercase))
     digit_set = set(list(string.digits))
@@ -548,13 +585,17 @@ class Parser:
                     tokens.append(token)
                     made_token = True
                     break
+            # Making a token causes pos to advance. If there was no token to be
+            #  made, pos is unchanged, so we have to advance it now.
             if not made_token:
                 pos += 1
         return tokens
 
     @staticmethod
     def parse_token(char_set, text, pos):
-        """Extract a sequence of characters belonging to a character set."""
+        """Extract a sequence of characters belonging to a character set.
+        Return a tuple comprising the new text position and a Token object.
+        """
         chars = []
         start = pos
         while True:
@@ -567,18 +608,24 @@ class Parser:
 
 
 class Main:
+    """A programmatic front end to the processes of loading data from files,
+    finding matches, and writing out the results in various formats.
+    """
 
     def __init__(self, products_path, listings_path, results_path):
+        """Load data, perform matching, and write out the results."""
         self.load_data(products_path, listings_path)
         self.make_matcher()
         self.write_results(results_path)
 
     def load_data(self, products_path, listings_path):
+        """Slurp product and listing data from files."""
         print('loading data')
         self.products = self.load(Product, products_path)
         self.listings = self.load(Listing, listings_path)
 
     def make_matcher(self):
+        """Instantiate a Matcher. This performs the matching process."""
         self.matcher = TightMatcher(self.products, self.listings)
 
     @staticmethod
@@ -595,36 +642,44 @@ class Main:
         return items
 
     def write_results(self, results_path):
-        print('writing %s' % results_path)
+        """Print JSON lines as specified by the Sortable challenge."""
+        print('writing results to %s' % results_path)
         with open(results_path, 'w') as file:
             self.matcher.write_results(file)
 
-    def write_js(self, viewer_dir):
+    def write_data_js(self, viewer_dir):
+        """Generate a JavaScript file containing the data necessary to build
+        a listing viewer in the client. This method is an alternative to
+        generating a static HTML file on the server.
+        """
         js_path = os.path.join(viewer_dir, 'js/data.js')
-        print('writing %s' % js_path)
+        print('writing data to %s' % js_path)
         with open(js_path, 'w') as file:
-            self.matcher.write_js(file)
+            self.matcher.write_data_js(file)
 
-    def write_html(self, viewer_dir):
+    def write_viewer_html(self, viewer_dir):
+        """Generate a static HTML file showing listings and candidates."""
+        # We assume the existence of a viewer directory containing the
+        #  necessary HTML fragments along with supporting CSS and JS files.
         fragment_dir = os.path.join(viewer_dir, 'fragments')
         header = open(os.path.join(fragment_dir, 'header.html')).read()
         footer = open(os.path.join(fragment_dir, 'footer.html')).read()
         html_path = os.path.join(viewer_dir, 'listings.html')
-        print('writing %s' % html_path)
+        print('writing viewer to %s' % html_path)
         with open(html_path, 'w') as file:
-            self.matcher.write_html(file, header, footer)
+            self.matcher.write_viewer_html(file, header, footer)
 
 # Check Python version.
 major, minor = 3, 2
 if sys.version_info[:2] < (major, minor):
-    sys.exit('Python version >= %d.%d required' (major, minor))
+    sys.exit('Python version >= %d.%d required' % (major, minor))
 
 if __name__ == '__main__':
     # Use relative paths for the required input/output files.
-    names = [ 'products', 'listings', 'results' ]
+    file_names = [ 'products', 'listings', 'results' ]
     suffix = '.txt'
     paths = Container()
-    for name in names:
+    for name in file_names:
         setattr(paths, name, name + suffix)
     # For the HTML viewer, get the absolute path of the script's location.
     script_dir = os.path.dirname(os.path.abspath(
@@ -638,7 +693,7 @@ if __name__ == '__main__':
     argparser.add_argument('-w', '--webviewer', help='generate web viewer',
             action='store_true')
     arguments = argparser.parse_args()
-    for name in names:
+    for name in file_names:
         value = getattr(arguments, name)
         if value != None:
             setattr(paths, name, value)
@@ -646,7 +701,7 @@ if __name__ == '__main__':
     try:
         main = Main(paths.products, paths.listings, paths.results)
         if arguments.webviewer:
-            main.write_html(viewer_dir)
+            main.write_viewer_html(viewer_dir)
     except (FileNotFoundError, PermissionError):
         error = sys.exc_info()[1]
         print('%s: %s' % (type(error).__name__, error))

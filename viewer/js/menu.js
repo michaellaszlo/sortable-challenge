@@ -13,11 +13,11 @@ var ListingMenu = (function () {
     }
   }
 
-  function makeGroupScroller(group) {
+  function makeGroupScroller(group, continuation) {
     // Handle a request to scroll to a group of listings.
     return function () {
       group.scrollIntoView();
-      menuClick();
+      continuation();
     }
   }
 
@@ -44,7 +44,7 @@ var ListingMenu = (function () {
       header = group.children[0];
       text = header.innerHTML.replace(/^\s+|\s+$/g, '');
       link = M.make('li', { parent: linkContainer, innerHTML: text });
-      link.onclick = makeGroupScroller(group);
+      link.onclick = makeGroupScroller(group, menuClick);
     }
     button.onclick = menuClick;
     // Hide spinner.

@@ -54,15 +54,13 @@ To get a summary of the command-line options, use the `-h` option:
 ## Viewer option
 
 You may be interested in the web-based listing viewer that I made to
-help me visually inspect the candidate matches produced by various
-matching rules.
+help with manual inspection of match candidates.
 
 The `-w` or `--webviewer` option makes `matcher.py` write an HTML file to
 `viewer/listings.html` in the directory that contains `matcher.py`. Unlike
-the other file paths, the HTML file's path is independent of your
-current working directory. You cannot specify a different path. To work
-correctly, the HTML file requires the `viewer/` directory supplied with
-the repository.
+the file paths discussed earlier, the HTML file's path is independent
+of your current working directory. To work correctly, the HTML file must
+be written to the `viewer/` directory supplied with the repository.
 
 The `-w` option takes no argument. It can be used in conjunction with
 the other path options.
@@ -74,11 +72,11 @@ output paths:
 
 Using different listings, this time with PyPy:
 
+    pypy3 -w -l ~/big/listings.txt
+
+Changing the order of the options:
+
     pypy3 -l ~/big/listings.txt -w
-
-Writing the text results elsewhere and changing the order of the options:
-
-    pypy3 -w -r ~/big/results.txt -l ~/big/listings.txt
 
 After running `matcher.py` with the `-w` option, you can open
 `viewer/listings.html` in a web browser to view the listings and their

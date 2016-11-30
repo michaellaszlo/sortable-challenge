@@ -1,6 +1,14 @@
 var ListingViewer = (function () {
   'use strict';
 
+  // requires: data.js
+
+  // This module uses the product and listing data in data.js to build the
+  //   listing viewer. The page is blank while the elements are being built,
+  //   which takes several seconds if there are tens of thousands of items.
+  // I have replaced this approach with one that generates the listing viewer
+  //   in advance and writes it to static HTML.
+
   var groupOrder = [ 'multipleUnresolved', 'multipleResolved', 'one', 'zero' ],
       groupInfo = {
         multipleUnresolved: { numberText: 'Unresolved multiple', plural: 's' },
