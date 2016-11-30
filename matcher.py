@@ -51,8 +51,8 @@ class Matcher:
         """
         products = []
         product_keys = set()
-        reduce_regex = re.compile('[^a-z0-9]', re.IGNORECASE)
-        reduce = lambda s: reduce_regex.sub('', s.lower())
+        strip_regex = re.compile('[^a-z0-9]', re.IGNORECASE)
+        strip = lambda s: strip_regex.sub('', s.lower())
         for product in self.products:
             values = [ product.manufacturer ]
             # Some products have no family value. The rascals!
@@ -60,7 +60,7 @@ class Matcher:
                 values.append(product.family)
             values.append(product.model)
             # It's safe to join with a space -- values were stripped of spaces.
-            key = ' '.join(map(reduce, values))
+            key = ' '.join(map(strip, values))
             if key in product_keys:
                 continue
             product_keys.add(key)
@@ -200,7 +200,7 @@ class Matcher:
             proportion = 100.0 * frequency / len(self.listings)
             print('%3d: %d %.1f%%' % (count, frequency, proportion))
 
-    def write_results(self, file):
+    def write_results(self, out_file):
         """Write out final matches in the required challenge format."""
         result_map = {}
         for listing in self.listings:
@@ -208,13 +208,13 @@ class Matcher:
             if product == None:
                 continue
             result_map.setdefault(product.product_name, []).append(listing)
-        file.write('\n'.join(json.dumps(
+        out_file.write('\n'.join(json.dumps(
                 { 'product_name': product_name,
                   'listings': [ listing.result_data for listing in listings] },
                 ensure_ascii=False) for product_name, listings in
                 sorted(result_map.items())) + '\n')
     
-    def write_data_js(self, file):
+    def write_data_js(self, out_file):
         """Convert products and listings into dictionaries. Write them to a
         JavaScript file that can be used to dynamically build a web page
         that displays listings with candidates.
@@ -230,7 +230,7 @@ class Matcher:
                 item[field] = { 'text': getattr(product, field),
                         'tokenSpans': [ token.span for
                                 token in getattr(product.tokens, field) ] }
-        file.write('var products = %s;\n' % (json.dumps(product_items,
+        out_file.write('var products = %s;\n' % (json.dumps(product_items,
                 ensure_ascii=False)))
         listing_items = len(self.listings) * [ None ]
         for i, listing in enumerate(self.listings):
@@ -245,10 +245,10 @@ class Matcher:
                     product in listing.candidates ]
             if listing.best_candidate != None:
                 item['bestCandidateKey'] = listing.best_candidate.id
-        file.write('var listings = %s;\n' % (json.dumps(listing_items,
+        out_file.write('var listings = %s;\n' % (json.dumps(listing_items,
                 ensure_ascii=False)))
 
-    def write_viewer_html(self, file, header, footer):
+    def write_viewer_html(self, out_file, header, footer):
         """Generate a static HTML file displaying listings with candidates."""
         # Make a wrapper for everything.
         wrapper = HTMLNode('div', { 'id': 'wrapper' })
@@ -327,9 +327,9 @@ class Matcher:
                     '' if count == 1 else 's', 100.0 * count / total_count)
             group.children[0].children[0] += count_text
             wrapper.add(group)
-        file.write(header)
-        file.write(wrapper.to_text(indent_to_depth=3))
-        file.write(footer)
+        out_file.write(header)
+        out_file.write(wrapper.to_text(indent_to_depth=3))
+        out_file.write(footer)
 
     @staticmethod
     def make_group_node(header_text, plural=''):
@@ -387,8 +387,8 @@ class LooseMatcher(Matcher):
         if a_num_tokens < b_num_tokens:
             return 1
         # Does one product have a longer model name than the other?
-        a_total_length = sum(map(lambda t: len(t.text), a.tokens.model))
-        b_total_length = sum(map(lambda t: len(t.text), b.tokens.model))
+        a_total_length = sum( len(token.text) for token in a.tokens.model )
+        b_total_length = sum( len(token.text) for token in b.tokens.model )
         if a_total_length > b_total_length:
             return -1
         if a_total_length < b_total_length:
@@ -629,15 +629,15 @@ class Main:
         print('  %.3f s' % (time.time() - start_time))
 
     def make_matcher(self):
-        """Instantiate a Matcher. This performs the matching process."""
+        """Instantiate a Matcher subclass to run the matching process."""
         self.matcher = TightMatcher(self.products, self.listings)
 
     @staticmethod
     def load(Item, file_path):
         """Make a list of Item objects from a file of JSON lines."""
         items = []
-        with open(file_path) as file:
-            for line_index, line in enumerate(file.readlines()):
+        with open(file_path) as in_file:
+            for line_index, line in enumerate(in_file.readlines()):
                 data = json.loads(line)
                 # Allow for predefined IDs. Use the line number by default.
                 if 'id' not in data:
@@ -649,8 +649,8 @@ class Main:
         """Print JSON lines as specified by the Sortable challenge."""
         print('writing results to %s' % results_path)
         start_time = time.time()
-        with open(results_path, 'w') as file:
-            self.matcher.write_results(file)
+        with open(results_path, 'w') as out_file:
+            self.matcher.write_results(out_file)
         print('  %.3f s' % (time.time() - start_time))
 
     def write_data_js(self, viewer_dir):
@@ -661,8 +661,8 @@ class Main:
         js_path = os.path.join(viewer_dir, 'js/data.js')
         print('writing data to %s' % js_path)
         start_time = time.time()
-        with open(js_path, 'w') as file:
-            self.matcher.write_data_js(file)
+        with open(js_path, 'w') as out_file:
+            self.matcher.write_data_js(out_file)
         print('  %.3f s' % (time.time() - start_time))
 
     def write_viewer_html(self, viewer_dir):
@@ -675,16 +675,13 @@ class Main:
         html_path = os.path.join(viewer_dir, 'listings.html')
         print('writing viewer to %s' % html_path)
         start_time = time.time()
-        with open(html_path, 'w') as file:
-            self.matcher.write_viewer_html(file, header, footer)
+        with open(html_path, 'w') as out_file:
+            self.matcher.write_viewer_html(out_file, header, footer)
         print('  %.3f s' % (time.time() - start_time))
 
-# Check Python version.
-major, minor = 3, 2
-if sys.version_info[:2] < (major, minor):
-    sys.exit('Python version >= %d.%d required' % (major, minor))
 
-if __name__ == '__main__':
+def run_script():
+    """Figure out file paths and pass them to the Main initializer."""
     # Use relative paths for the required input/output files.
     file_names = [ 'products', 'listings', 'results' ]
     suffix = '.txt'
@@ -707,7 +704,7 @@ if __name__ == '__main__':
         value = getattr(arguments, name)
         if value != None:
             setattr(paths, name, value)
-    # Perform matching, then optionally generate the HTML viewer.
+    # Perform matching and optionally generate the HTML viewer.
     try:
         main = Main(paths.products, paths.listings, paths.results)
         if arguments.webviewer:
@@ -715,5 +712,17 @@ if __name__ == '__main__':
     except (FileNotFoundError, PermissionError):
         error = sys.exc_info()[1]
         print('%s: %s' % (type(error).__name__, error))
+        return
+    # Print summary statistics.
     main.matcher.print_candidate_counts()
+
+def check_python_version():
+    """Do what it says on the tin."""
+    major, minor = 3, 2
+    if sys.version_info[:2] < (major, minor):
+        sys.exit('Python version >= %d.%d required' % (major, minor))
+
+check_python_version()
+if __name__ == '__main__':
+    run_script()
 
