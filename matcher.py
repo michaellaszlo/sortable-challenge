@@ -8,6 +8,7 @@ import random
 import re
 import string
 import sys
+import time
 
 
 class Matcher:
@@ -19,9 +20,11 @@ class Matcher:
     def __init__(self, products, listings):
         """Run the matching process."""
         self.products, self.listings = products, listings
+        print('matching')
+        start_time = time.time()
         self.match_all_products()
         self.disambiguate_matches()
-        self.print_candidate_counts()
+        print('  %.3f s' % (time.time() - start_time))
 
     def match_all_products(self):
         """Iterate over products first to match them with listings."""
@@ -33,7 +36,6 @@ class Matcher:
         #  the listing tokens act as a document to which we apply the query.
         #  Thus, it is the listings -- the documents, as it were -- that must
         #  be indexed.
-        print('matching products')
         self.remove_duplicate_products()
         self.index_all_listings()
         for listing in self.listings:
@@ -351,61 +353,6 @@ class Matcher:
                 field_name, '">', text[a:b], '</span>', text[b:] ])
 
 
-class HTMLNode:
-    """A simple representation of an HTML element containing just enough
-    information to print out static HTML.
-    """
-
-    one_indent = '  '  # The unit of indentation.
-
-    def __init__(self, name, attributes=None, children=None):
-        """Make a specified type of HTML element. Optionally set its
-        dictionary of attribute strings and list of child elements.
-        """
-        self.name = name
-        self.attributes = attributes or {}
-        self.children = children or []
-
-    def add(self, node):
-        """Add a given HTML node as a child of this one."""
-        self.children.append(node)
-
-    def to_text(self, depth=0, indent_to_depth=0):
-        """Recursively generate a text representation of this HTML node.
-        Indentation is done to the maximum depth specified by the optional
-        argument indent_to_depth. Upon reaching this depth, indentation ceases.
-        If indent_to_depth is omitted, there is no indentation at all.
-        """
-        parts = []
-        # Opening tag.
-        if depth < indent_to_depth:
-            parts.extend(depth * [ self.one_indent ])
-        parts.extend([ '<', self.name ])
-        for key, value in self.attributes.items():
-            parts.extend([ ' ', key, '="', value, '"' ])
-        parts.append('>')
-        if depth < indent_to_depth:
-            parts.append('\n')
-        # Children.
-        for child in self.children:
-            if type(child) == HTMLNode:
-                parts.append(child.to_text(depth + 1, indent_to_depth))
-            else:
-                if depth < indent_to_depth:
-                    parts.extend((depth + 1) * [ self.one_indent ])
-                parts.append(str(child))
-                if depth < indent_to_depth:
-                    parts.append('\n')
-        # Closing tag.
-        if depth < indent_to_depth:
-            parts.extend(depth * [ self.one_indent ])
-        parts.extend([ '</', self.name, '>' ])
-        if depth < indent_to_depth:
-            parts.append('\n')
-        # Done.
-        return ''.join(parts)
-
-
 class LooseMatcher(Matcher):
     """Implements matching rules that prefer recall to precision."""
 
@@ -502,6 +449,61 @@ class TightMatcher(Matcher):
         if Matcher.find(b.tokens.model, a.tokens.model) >= 0:
             return 1
         return 0
+
+
+class HTMLNode:
+    """A simple representation of an HTML element, containing just enough
+    information to print out static HTML.
+    """
+
+    one_indent = '  '  # The unit of indentation.
+
+    def __init__(self, name, attributes=None, children=None):
+        """Make a specified type of HTML element. Optionally set its
+        dictionary of attribute strings and list of child elements.
+        """
+        self.name = name
+        self.attributes = attributes or {}
+        self.children = children or []
+
+    def add(self, node):
+        """Add a given HTML node as a child of this one."""
+        self.children.append(node)
+
+    def to_text(self, depth=0, indent_to_depth=0):
+        """Recursively generate a text representation of this HTML node.
+        Indentation is done to the maximum depth specified by the optional
+        argument indent_to_depth. Upon reaching this depth, indentation ceases.
+        If indent_to_depth is omitted, there is no indentation at all.
+        """
+        parts = []
+        # Opening tag.
+        if depth < indent_to_depth:
+            parts.extend(depth * [ self.one_indent ])
+        parts.extend([ '<', self.name ])
+        for key, value in self.attributes.items():
+            parts.extend([ ' ', key, '="', value, '"' ])
+        parts.append('>')
+        if depth < indent_to_depth:
+            parts.append('\n')
+        # Children.
+        for child in self.children:
+            if type(child) == HTMLNode:
+                parts.append(child.to_text(depth + 1, indent_to_depth))
+            else:
+                if depth < indent_to_depth:
+                    parts.extend((depth + 1) * [ self.one_indent ])
+                parts.append(str(child))
+                if depth < indent_to_depth:
+                    parts.append('\n')
+        # Closing tag.
+        if depth < indent_to_depth:
+            parts.extend(depth * [ self.one_indent ])
+        parts.extend([ '</', self.name, '>' ])
+        if depth < indent_to_depth:
+            parts.append('\n')
+        # Done.
+        return ''.join(parts)
 
 
 class Container:
@@ -621,8 +623,10 @@ class Main:
     def load_data(self, products_path, listings_path):
         """Slurp product and listing data from files."""
         print('loading data')
+        start_time = time.time()
         self.products = self.load(Product, products_path)
         self.listings = self.load(Listing, listings_path)
+        print('  %.3f s' % (time.time() - start_time))
 
     def make_matcher(self):
         """Instantiate a Matcher. This performs the matching process."""
@@ -644,8 +648,10 @@ class Main:
     def write_results(self, results_path):
         """Print JSON lines as specified by the Sortable challenge."""
         print('writing results to %s' % results_path)
+        start_time = time.time()
         with open(results_path, 'w') as file:
             self.matcher.write_results(file)
+        print('  %.3f s' % (time.time() - start_time))
 
     def write_data_js(self, viewer_dir):
         """Generate a JavaScript file containing the data necessary to build
@@ -654,8 +660,10 @@ class Main:
         """
         js_path = os.path.join(viewer_dir, 'js/data.js')
         print('writing data to %s' % js_path)
+        start_time = time.time()
         with open(js_path, 'w') as file:
             self.matcher.write_data_js(file)
+        print('  %.3f s' % (time.time() - start_time))
 
     def write_viewer_html(self, viewer_dir):
         """Generate a static HTML file showing listings and candidates."""
@@ -666,8 +674,10 @@ class Main:
         footer = open(os.path.join(fragment_dir, 'footer.html')).read()
         html_path = os.path.join(viewer_dir, 'listings.html')
         print('writing viewer to %s' % html_path)
+        start_time = time.time()
         with open(html_path, 'w') as file:
             self.matcher.write_viewer_html(file, header, footer)
+        print('  %.3f s' % (time.time() - start_time))
 
 # Check Python version.
 major, minor = 3, 2
@@ -705,4 +715,5 @@ if __name__ == '__main__':
     except (FileNotFoundError, PermissionError):
         error = sys.exc_info()[1]
         print('%s: %s' % (type(error).__name__, error))
+    main.matcher.print_candidate_counts()
 

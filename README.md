@@ -45,7 +45,7 @@ Writing the results to a different output file:
 
 Using all three options, this time with PyPy:
 
-    pypy3 matcher.py -p cameras.txt -l ~/big/listings.txt -r ~/big/results.txt
+    pypy3 matcher.py -p phones.txt -l ~/big/listings.txt -r ~/big/results.txt
 
 To get a summary of the command-line options, use the `-h` option:
 
