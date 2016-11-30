@@ -99,14 +99,14 @@ var M = (function () {
       top += element.offsetTop;
       element = element.parentNode;
     }
-    return { left: left, top: top };
+    return {left: left, top: top};
   }
 
   // Get event coordinates relative to the page's top left corner.
   function getMousePosition(event) {
     event = event || window.event;
     if (event.pageX) {
-      return { x: event.pageX, y: event.pageY };
+      return {x: event.pageX, y: event.pageY};
     }
     return {
       x: event.clientX + document.body.scrollLeft +

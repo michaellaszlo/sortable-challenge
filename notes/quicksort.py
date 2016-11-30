@@ -26,7 +26,7 @@ def test():
     """Generate random lists and test our sorting against Python's sorting."""
     okay = True
     for i in range(10**4):
-        original = [ random.randrange(10) for i in range(20) ]
+        original = [random.randrange(10) for i in range(20)]
         computed = original[:]
         sort(computed)
         expected = sorted(original)

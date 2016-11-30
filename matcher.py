@@ -54,7 +54,7 @@ class Matcher:
         strip_regex = re.compile('[^a-z0-9]', re.IGNORECASE)
         strip = lambda s: strip_regex.sub('', s.lower())
         for product in self.products:
-            values = [ product.manufacturer ]
+            values = [product.manufacturer]
             # Some products have no family value. The rascals!
             if hasattr(product, 'family'):
                 values.append(product.family)
@@ -69,7 +69,7 @@ class Matcher:
 
     def index_all_listings(self):
         """Index the listings using their manufacturer and title tokens."""
-        for field in [ 'manufacturer', 'title' ]:
+        for field in ['manufacturer', 'title']:
             index = {}
             for listing in self.listings:
                 for token in getattr(listing.tokens, field):
@@ -82,7 +82,7 @@ class Matcher:
         # Use token indices to get a smaller set of listings.
         for listing_field, product_field in [
                 ('manufacturer', 'manufacturer'),
-                ('title', 'model') ]:
+                ('title', 'model')]:
             try:
                 index = getattr(self, listing_field + '_index')
             except AttributeError:
@@ -209,40 +209,40 @@ class Matcher:
                 continue
             result_map.setdefault(product.product_name, []).append(listing)
         out_file.write('\n'.join(json.dumps(
-                { 'product_name': product_name,
-                  'listings': [ listing.result_data for listing in listings] },
+                {'product_name': product_name,
+                 'listings': [listing.result_data for listing in listings]},
                 ensure_ascii=False) for product_name, listings in
                 sorted(result_map.items())) + '\n')
-    
+
     def write_data_js(self, out_file):
         """Convert products and listings into dictionaries. Write them to a
         JavaScript file that can be used to dynamically build a web page
         that displays listings with candidates.
         """
-        product_items = len(self.products) * [ None ]
+        product_items = len(self.products) * [None]
         for i, product in enumerate(self.products):
-            item = product_items[i] = { 'id': product.id }
-            for field in [ 'manufacturer', 'family', 'model' ]:
+            item = product_items[i] = {'id': product.id}
+            for field in ['manufacturer', 'family', 'model']:
                 # A product may not have the family attribute.
                 if not hasattr(product, field):
                     continue
                 # Make a dictionary containing text and tokens.
-                item[field] = { 'text': getattr(product, field),
-                        'tokenSpans': [ token.span for
-                                token in getattr(product.tokens, field) ] }
+                item[field] = {'text': getattr(product, field),
+                        'tokenSpans': [token.span for token in
+                                getattr(product.tokens, field)]}
         out_file.write('var products = %s;\n' % (json.dumps(product_items,
                 ensure_ascii=False)))
-        listing_items = len(self.listings) * [ None ]
+        listing_items = len(self.listings) * [None]
         for i, listing in enumerate(self.listings):
-            item = listing_items[i] = { 'id': listing.id }
-            for field in [ 'manufacturer', 'title' ]:
+            item = listing_items[i] = {'id': listing.id}
+            for field in ['manufacturer', 'title']:
                 # Make a dictionary containing text and tokens.
-                item[field] = { 'text': getattr(listing, field),
-                        'tokenSpans': [ token.span for
-                                token in getattr(listing.tokens, field) ] }
+                item[field] = {'text': getattr(listing, field),
+                        'tokenSpans': [token.span for token in
+                                getattr(listing.tokens, field)]}
             listing.candidates.sort(key=lambda p: p.id)
-            item['candidateKeys'] = [ product.id for
-                    product in listing.candidates ]
+            item['candidateKeys'] = [product.id for
+                    product in listing.candidates]
             if listing.best_candidate != None:
                 item['bestCandidateKey'] = listing.best_candidate.id
         out_file.write('var listings = %s;\n' % (json.dumps(listing_items,
@@ -251,9 +251,9 @@ class Matcher:
     def write_viewer_html(self, out_file, header, footer):
         """Generate a static HTML file displaying listings with candidates."""
         # Make a wrapper for everything.
-        wrapper = HTMLNode('div', { 'id': 'wrapper' })
+        wrapper = HTMLNode('div', {'id': 'wrapper'})
         # Add a spinner to bide the time while the listings load.
-        spinner = HTMLNode('div', { 'id': 'spinner' })
+        spinner = HTMLNode('div', {'id': 'spinner'})
         wrapper.add(spinner)
         # Make nodes to contain listings grouped by candidate count.
         multiple_unresolved = self.make_group_node('Unresolved multiple', 's')
@@ -272,24 +272,24 @@ class Matcher:
             else:
                 group = multiple_unresolved
             # Make a node to contain the listing and its candidate products.
-            container = HTMLNode('div', { 'class': 'listingContainer' })
+            container = HTMLNode('div', {'class': 'listingContainer'})
             group.add(container)
             # Make a node for the listing itself.
-            listing_node = HTMLNode('div', { 'class': 'listing' },
-                    [ self.make_pair_node('listing', listing.id, 'id') ])
+            listing_node = HTMLNode('div', {'class': 'listing'},
+                    [self.make_pair_node('listing', listing.id, 'id')])
             container.add(listing_node)
             # Store text fragments for later use in highlighting the listing.
-            highlight_maps = Container({ 'manufacturer': {}, 'title': {} })
+            highlight_maps = Container({'manufacturer': {}, 'title': {}})
             for product in sorted(listing.candidates, key=lambda x: x.id):
                 # Make a node for the product.
                 class_text = 'product'
                 if product == listing.best_candidate:
                     class_text += ' selected'
-                group_node = HTMLNode('div', { 'class': class_text },
-                        [ self.make_pair_node('product', product.id, 'id') ])
+                group_node = HTMLNode('div', {'class': class_text},
+                        [self.make_pair_node('product', product.id, 'id')])
                 container.add(group_node)
                 # Add the product fields.
-                for name in [ 'manufacturer', 'family', 'model' ]:
+                for name in ['manufacturer', 'family', 'model']:
                     # There may be no family.
                     if not hasattr(product, name):
                         continue
@@ -306,7 +306,7 @@ class Matcher:
                         text = self.insert_highlighting(text, a, b, name)
                     group_node.add(self.make_pair_node(name, text, name))
             # Highlight listing fields and turn them into nodes.
-            for name in [ 'manufacturer', 'title' ]:
+            for name in ['manufacturer', 'title']:
                 highlight_map = getattr(highlight_maps, name)
                 text = getattr(listing, name)
                 text_lower = text.lower()
@@ -321,7 +321,7 @@ class Matcher:
                 listing_node.add(self.make_pair_node(name, text, name))
         # Alter each group header to show the number of listings it contains.
         total_count = len(self.listings)
-        for group in [ multiple_unresolved, multiple_resolved, one, zero ]:
+        for group in [multiple_unresolved, multiple_resolved, one, zero]:
             count = len(group.children) - 1
             count_text = ': %d listing%s (%.1f%%)' % (count,
                     '' if count == 1 else 's', 100.0 * count / total_count)
@@ -334,23 +334,23 @@ class Matcher:
     @staticmethod
     def make_group_node(header_text, plural=''):
         """Represent a group of listings in HTML."""
-        return HTMLNode('div', { 'class': 'group' },
-                [ HTMLNode('h2', { 'class': 'header' },
-                        [ header_text + ' candidate' + plural ]) ])
+        return HTMLNode('div', {'class': 'group'},
+                [HTMLNode('h2', {'class': 'header'},
+                        [header_text + ' candidate' + plural])])
 
     @staticmethod
     def make_pair_node(key, value, class_extra=None):
         """Represent a key-value pair in HTML."""
         class_name = 'pair' if class_extra == None else 'pair %s' % class_extra
-        return HTMLNode('div', { 'class': class_name },
-                [ HTMLNode('span', { 'class': 'key' }, [ key ]),
-                  HTMLNode('span', { 'class': 'value' }, [ value ]) ])
+        return HTMLNode('div', {'class': class_name},
+                [HTMLNode('span', {'class': 'key'}, [key]),
+                 HTMLNode('span', {'class': 'value'}, [value])])
 
     @staticmethod
     def insert_highlighting(text, a, b, field_name):
         """Insert span tags that will activate highlight styling."""
-        return ''.join([ text[:a], '<span class="match ',
-                field_name, '">', text[a:b], '</span>', text[b:] ])
+        return ''.join([text[:a], '<span class="match ',
+                field_name, '">', text[a:b], '</span>', text[b:]])
 
 
 class LooseMatcher(Matcher):
@@ -367,7 +367,7 @@ class LooseMatcher(Matcher):
             return False
         return Matcher.find(listing.tokens.title, product.tokens.model) != -1
 
-    @staticmethod 
+    @staticmethod
     def compare_details(listing, a, b):
         """Decide whether one product is a closer match than another."""
         # Does one product have a family match whereas the other does not?
@@ -387,8 +387,8 @@ class LooseMatcher(Matcher):
         if a_num_tokens < b_num_tokens:
             return 1
         # Does one product have a longer model name than the other?
-        a_total_length = sum( len(token.text) for token in a.tokens.model )
-        b_total_length = sum( len(token.text) for token in b.tokens.model )
+        a_total_length = sum(len(token.text) for token in a.tokens.model)
+        b_total_length = sum(len(token.text) for token in b.tokens.model)
         if a_total_length > b_total_length:
             return -1
         if a_total_length < b_total_length:
@@ -479,10 +479,10 @@ class HTMLNode:
         parts = []
         # Opening tag.
         if depth < indent_to_depth:
-            parts.extend(depth * [ self.one_indent ])
-        parts.extend([ '<', self.name ])
+            parts.extend(depth * [self.one_indent])
+        parts.extend(['<', self.name])
         for key, value in self.attributes.items():
-            parts.extend([ ' ', key, '="', value, '"' ])
+            parts.extend([' ', key, '="', value, '"'])
         parts.append('>')
         if depth < indent_to_depth:
             parts.append('\n')
@@ -492,14 +492,14 @@ class HTMLNode:
                 parts.append(child.to_text(depth + 1, indent_to_depth))
             else:
                 if depth < indent_to_depth:
-                    parts.extend((depth + 1) * [ self.one_indent ])
+                    parts.extend((depth + 1) * [self.one_indent])
                 parts.append(str(child))
                 if depth < indent_to_depth:
                     parts.append('\n')
         # Closing tag.
         if depth < indent_to_depth:
-            parts.extend(depth * [ self.one_indent ])
-        parts.extend([ '</', self.name, '>' ])
+            parts.extend(depth * [self.one_indent])
+        parts.extend(['</', self.name, '>'])
         if depth < indent_to_depth:
             parts.append('\n')
         # Done.
@@ -527,7 +527,7 @@ class Product(Container):
     def __str__(self):
         """Make a concise string representation for debugging."""
         family = self.family if hasattr(self, 'family') else '-'
-        return ' '.join([ self.id, self.manufacturer, family, self.model ])
+        return ' '.join([self.id, self.manufacturer, family, self.model])
 
 
 class Listing(Container):
@@ -543,7 +543,7 @@ class Listing(Container):
 
     def __str__(self):
         """Make a concise string representation for debugging."""
-        return ' '.join([ self.id, self.manufacturer, self.title ])
+        return ' '.join([self.id, self.manufacturer, self.title])
 
 
 class Token:
@@ -565,7 +565,7 @@ class Parser:
     def tokenize_attributes(item, *names):
         """Given an object and one or more attribute names, make token lists
         from the named attributes and assign them to a new .tokens attribute.
-        """ 
+        """
         item.tokens = Container()
         for name in names:
             if hasattr(item, name):
@@ -581,7 +581,7 @@ class Parser:
         while pos < len(text):
             ch = text[pos]
             made_token = False
-            for char_set in [ Parser.letter_set, Parser.digit_set ]:
+            for char_set in [Parser.letter_set, Parser.digit_set]:
                 if ch in char_set:
                     pos, token = Parser.parse_token(char_set, text, pos)
                     tokens.append(token)
@@ -683,7 +683,7 @@ class Main:
 def run_script():
     """Figure out file paths and pass them to the Main initializer."""
     # Use relative paths for the required input/output files.
-    file_names = [ 'products', 'listings', 'results' ]
+    file_names = ['products', 'listings', 'results']
     suffix = '.txt'
     paths = Container()
     for name in file_names:

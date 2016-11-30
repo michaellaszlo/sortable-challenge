@@ -1,5 +1,6 @@
 var ListingMenu = (function () {
   'use strict';
+
   // requires: mikelib.js
 
   var menu;
@@ -27,9 +28,9 @@ var ListingMenu = (function () {
         groups, group, header, text, link,
         wrapper = document.getElementById('wrapper'),
         children = wrapper.children;
-    menu = M.make('div', { id: 'menu', parent: wrapper });
-    button = M.make('div', { className: 'button', parent: menu });
-    linkContainer = M.make('ul', { className: 'links', parent: menu });
+    menu = M.make('div', {id: 'menu', parent: wrapper});
+    button = M.make('div', {className: 'button', parent: menu});
+    linkContainer = M.make('ul', {className: 'links', parent: menu});
     // Find the listing groups. They are children of the wrapper.
     groups = [];
     for (i = 0; i < children.length; ++i) {
@@ -43,7 +44,7 @@ var ListingMenu = (function () {
       group = groups[i];
       header = group.children[0];
       text = header.innerHTML.replace(/^\s+|\s+$/g, '');
-      link = M.make('li', { parent: linkContainer, innerHTML: text });
+      link = M.make('li', {parent: linkContainer, innerHTML: text});
       link.onclick = makeGroupScroller(group, menuClick);
     }
     button.onclick = menuClick;

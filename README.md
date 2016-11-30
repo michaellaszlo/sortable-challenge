@@ -69,15 +69,15 @@ the other path options.
 For example, to generate a web viewer using the default input and
 output paths:
 
-    python3 -w
+    python3 matcher.py -w
 
 Using different listings, this time with PyPy:
 
-    pypy3 -w -l ~/big/listings.txt
+    pypy3 matcher.py -w -l ~/big/listings.txt
 
 Changing the order of the options:
 
-    pypy3 -l ~/big/listings.txt -w
+    pypy3 matcher.py -l ~/big/listings.txt -w
 
 After running `matcher.py` with the `-w` option, you can open
 `viewer/listings.html` in a web browser to view the listings and their

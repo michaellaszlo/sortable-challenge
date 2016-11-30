@@ -36,6 +36,9 @@ body {
   height: 28px;
   background: url('../i/spinner.pastel.blue.28x28.png') no-repeat center center;
 }
+#spinner.done {
+  display: none;
+}
 
 #menu {
   position: fixed;
